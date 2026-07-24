@@ -1,0 +1,845 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * K3 FPGA SPL-specific device tree
+ * This is a minimal DTS for SPL boot stage only
+ *
+ * Copyright (C) 2025 SPACEMIT Micro Limited
+ */
+
+/dts-v1/;
+
+#include <config.h>
+#include "k3-cpus.dtsi"
+#include <dt-bindings/reset/reset-spacemit-k3.h>
+#include <dt-bindings/clock/spacemit-k3-clock.h>
+#include <dt-bindings/pinctrl/k3-pinctrl.h>
+#include "secure_boot.dtsi"
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <2>;
+	compatible = "spacemit,k3";
+
+	/* The pins of the SDCard share the same pins
+	 * as the JTAG. If you want to use the SDCard
+	 * slot for JTAG connection and debugging,
+	 * enable this bool property.
+	 */
+	//spacemit,enable-debug-jtag;
+
+	chosen {
+		stdout-path = "uart0:115200";
+	};
+
+	SECURE_BOOT_SIGNATURE_NODE
+
+	aliases {
+		console = &uart0;
+		mmc0 = &sdhci0;
+		mmc2 = &sdhci2;
+	};
+
+	clocks {
+		clk0: osc {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <66667000>;
+		};
+		vctcxo_24: vctcxo_24 {
+			u-boot,dm-spl;
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <24000000>;
+			clock-output-names = "vctcxo_24";
+		};
+		vctcxo_3: vctcxo_3 {
+			u-boot,dm-spl;
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <3000000>;
+			clock-output-names = "vctcxo_3";
+		};
+		vctcxo_1: vctcxo_1 {
+			u-boot,dm-spl;
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <1000000>;
+			clock-output-names = "vctcxo_1";
+		};
+		pll1_vco: pll1_vco {
+			u-boot,dm-spl;
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <24576000>;
+			clock-output-names = "pll1_vco";
+		};
+		osc_32k: osc_32k {
+			u-boot,dm-spl;
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <32000>;
+			clock-output-names = "osc_32k";
+		};
+		clk_dummy: clk_dummy {
+			u-boot,dm-spl;
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <0>;
+			clock-output-names = "clk_dummy";
+		};
+	};
+
+	memory@120000000 {
+		u-boot,dm-spl;
+		device_type = "memory";
+		reg = <0x1 0x20000000 0x0 0x40000000>;
+	};
+
+	soc {
+		u-boot,dm-spl;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		compatible = "simple-bus";
+		ranges;
+
+		ccu: clock-controller@d4050000 {
+			u-boot,dm-spl;
+			compatible = "spacemit,k3-ccu";
+			reg = <0x0 0xd4050000 0x0 0x209c>,
+				<0x0 0xd4282800 0x0 0x400>,
+				<0x0 0xd4015000 0x0 0x1000>,
+				<0x0 0xd4090000 0x0 0x1000>,
+				<0x0 0xd4282c00 0x0 0x400>,
+				<0x0 0xd8440000 0x0 0x98>,
+				<0x0 0xc0000000 0x0 0x4280>,
+				<0x0 0xf0610000 0x0 0x20>,
+				<0x0 0xc0880000 0x0 0xd100>;
+			reg-names = "mpmu", "apmu", "apbc", "apbs", "ciu", "dciu", "ddrc", "apbc2", "rcpu";
+			clocks = <&vctcxo_24>, <&vctcxo_3>, <&vctcxo_1>, <&pll1_vco>,
+				<&osc_32k>, <&clk_dummy>;
+			clock-names = "vctcxo_24", "vctcxo_3", "vctcxo_1", "pll1_vco",
+				"osc_32k", "clk_dummy";
+			#clock-cells = <1>;
+			status = "okay";
+		};
+
+		reset: reset-controller@d4050000 {
+			u-boot,dm-spl;
+			compatible = "spacemit,k3-reset";
+			reg = <0x0 0xd4050000 0x0 0x209c>,
+				<0x0 0xd4282800 0x0 0x400>,
+				<0x0 0xd4015000 0x0 0x1000>,
+				<0x0 0xd4090000 0x0 0x1000>,
+				<0x0 0xd4282c00 0x0 0x400>,
+				<0x0 0xd8440000 0x0 0x98>,
+				<0x0 0xc0000000 0x0 0x4280>,
+				<0x0 0xf0610000 0x0 0x20>,
+				<0x0 0xc0880000 0x0 0xd100>;
+			reg-names = "mpmu", "apmu", "apbc", "apbs", "ciu", "dciu", "ddrc", "apbc2", "rcpu";
+			#reset-cells = <1>;
+			status = "okay";
+		};
+
+		pinctrl: pinctrl@d401e000 {
+			u-boot,dm-spl;
+			compatible = "pinctrl-single";
+			reg = <0x0 0xd401e000 0x0 0x400>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			#pinctrl-cells = <2>;
+			#gpio-range-cells = <3>;
+			pinctrl-single,register-width = <32>;
+			pinctrl-single,function-mask = <0xff77>;
+
+			range: gpio-range {
+				#pinctrl-single,gpio-range-cells = <3>;
+			};
+
+			pinctrl_espi0: espi0_grp {
+				u-boot,dm-spl;
+				power-source = <1800>;
+				pinctrl-single,pins = <
+					K3_PADCONF(GPIO_91, MUX_MODE4, (EDGE_NONE | PULL_UP | PAD_DS8)) /* espi_d0 */
+					K3_PADCONF(GPIO_92, MUX_MODE4, (EDGE_NONE | PULL_UP | PAD_DS8)) /* espi_d1 */
+					K3_PADCONF(GPIO_93, MUX_MODE4, (EDGE_NONE | PULL_UP | PAD_DS8)) /* espi_d2 */
+					K3_PADCONF(GPIO_94, MUX_MODE4, (EDGE_NONE | PULL_UP | PAD_DS8)) /* espi_d3 */
+					K3_PADCONF(GPIO_95, MUX_MODE4, (EDGE_NONE | PULL_UP | PAD_DS8)) /* espi_cs */
+					K3_PADCONF(GPIO_96, MUX_MODE4, (EDGE_NONE | PULL_UP | PAD_DS8)) /* espi_clk */
+					K3_PADCONF(GPIO_97, MUX_MODE4, (EDGE_NONE | PULL_UP | PAD_DS8)) /* espi_resetn */
+					K3_PADCONF(GPIO_98, MUX_MODE4, (EDGE_NONE | PULL_UP | PAD_DS8)) /* espi_alert */
+				>;
+			};
+			pinctrl_qspi: qspi_grp {
+				u-boot,dm-spl;
+				power-source = <1800>;
+				pinctrl-single,pins = <
+					K3_PADCONF(QSPI_DAT3, MUX_MODE0, (EDGE_NONE | PULL_DIS | PAD_DS8)) /* qspi_d3 */
+					K3_PADCONF(QSPI_DAT2, MUX_MODE0, (EDGE_NONE | PULL_DIS | PAD_DS8)) /* qspi_d2 */
+					K3_PADCONF(QSPI_DAT1, MUX_MODE0, (EDGE_NONE | PULL_DIS | PAD_DS8)) /* qspi_d1 */
+					K3_PADCONF(QSPI_DAT0, MUX_MODE0, (EDGE_NONE | PULL_DIS | PAD_DS8)) /* qspi_d0 */
+					K3_PADCONF(QSPI_CLK, MUX_MODE0, (EDGE_NONE | PULL_DIS | PAD_DS8)) /* qspi_clk */
+				>;
+			};
+			pinctrl_qspi_cs0: qspi_cs0_grp {
+				u-boot,dm-spl;
+				power-source = <1800>;
+				pinctrl-single,pins = <
+					K3_PADCONF(QSPI_CS0, MUX_MODE0, (EDGE_NONE | PULL_UP | PAD_DS8)) /* qspi_cs0 */
+				>;
+			};
+			pinctrl_qspi_cs1: qspi_cs1_grp {
+				u-boot,dm-spl;
+				pinctrl-single,pins = <
+					K3_PADCONF(QSPI_CS1, MUX_MODE0, (EDGE_NONE | PULL_UP | PAD_DS8)) /* qspi_cs1 */
+				>;
+			};
+		};
+
+		uart0: uart@d4017000 {
+			u-boot,dm-spl;
+			compatible = "ns16550";
+			reg = <0x00000000 0xD4017000 0x00000000 0x00000100>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			clock-frequency = <14745600>;
+		};
+
+		rcpu@0 {
+			u-boot,dm-spl;
+			compatible = "spacemit,k3-rproc";
+			reg = <0 0 0 0>;
+			remoteproc-name = "rcpu0";
+			coreid = <0>;
+			mem_heap_start = <0x1 0x500000>;
+			mem_heap_size = <0x200000>;
+			fw_boot_entry = <0x1 0x200000>;
+			status = "okay";
+		};
+
+		rcpu@1 {
+			u-boot,dm-spl;
+			compatible = "spacemit,k3-rproc";
+			reg = <0 0 0 0>;
+			remoteproc-name = "rcpu1";
+			coreid = <1>;
+			mem_heap_start = <0x1 0xB00000>;
+			mem_heap_size = <0x200000>;
+			fw_boot_entry = <0x1 0x800000>;
+			status = "okay";
+		};
+
+		ddr@cb000000 {
+			u-boot,dm-spl;
+			compatible = "spacemit,snps-lp45";
+			part-number = "MT62F2G32D4DS";
+			reg = <0x00000000 0xcb000000 0x00000000 0x00400000>,
+			      <0x00000000 0xcc000000 0x00000000 0x00400000>;
+			reg-names = "ddrc0", "ddrc1";
+			status = "okay";
+		};
+
+		qspi: spi@d420c000 {
+			u-boot,dm-spl;
+			compatible = "spacemit,k3-qspi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_qspi &pinctrl_qspi_cs0>;
+			reg = <0x0 0xd420c000 0x0 0x1000>,
+			      <0x0 0xb8000000 0x0 0x4100000>;
+			reg-names = "qspi-base", "qspi-mmap";
+			qspi-sfa1ad = <0x4000000>;
+			qspi-sfa2ad = <0x100000>;
+			qspi-sfb1ad = <0x100000>;
+			qspi-sfb2ad = <0x100000>;
+			qspi-pmuap-reg = <0xd4282860>;
+			qspi-mpmu-acgr-reg = <0xd4051024>;
+			qspi-ahbread = <0>;
+			qspi-freq = <26500000>;
+			qspi-id = <4>;
+			clocks = <&ccu CLK_QSPI>,
+			          <&ccu CLK_QSPI_BUS>;
+			clock-names = "qspi_clk", "qspi_bus_clk";
+			resets = <&reset RESET_QSPI>,
+				<&reset RESET_QSPI_BUS>;
+			reset-names = "qspi_reset", "qspi_bus_reset";
+			spi-max-frequency = <81300000>;
+			status = "okay";
+
+			flash@0 {
+				u-boot,dm-spl;
+				compatible = "jedec,spi-nor";
+				reg = <0>;
+				spi-max-frequency = <81300000>;
+				m25p,fast-read;
+				broken-flash-reset;
+				status = "okay";
+			};
+		};
+
+		espi0: espi@cac8c000 {
+			u-boot,dm-spl;
+			compatible = "spacemit,k2-espi";
+			reg = <0x0 0xcac8c000 0x0 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_espi0>;
+			clocks = <&ccu CLK_ESPI_SCLK_SRC>,
+				 <&ccu CLK_ESPI_SCLK>,
+				 <&ccu CLK_ESPI_MCLK>;
+			clock-names = "sclk_src", "sclk", "mclk";
+			resets = <&reset RESET_ESPI>;
+			reset-names = "espi_reset";
+			assigned-clocks = <&ccu CLK_ESPI_SCLK>;
+			assigned-clock-parents = <&ccu CLK_ESPI_SCLK_SRC>;
+
+			pr_io_base = <0x86000000>;
+			pr-mem-base0 = <0x84000000>;
+			pr-mem-base1 = <0xCAC8C000>;
+
+			/* Virtual-wire GPIO mapping configuration */
+			/* vw-gpio-mapping = <0 0x80>,             */
+			/* 				<1 0x81>,                  */
+			/* 				<2 0x82>,                  */
+			/* 				<3 0x83>;                  */
+
+			/* eSPI Master configuration */
+			operating-frequency = <20>;   /* 20MHz (will negotiate with slave) */
+			io-mode = "single";           /* "single", "dual", or "quad" */
+			alert-mode = "io1";           /* "pin" or "io1" */
+			alert-type = "open-drain";    /* "open-drain" or "push-pull" */
+
+			/* Features */
+			crc-enable;                    /* Enable CRC checking */
+			response-modifier-enable;      /* Enable response modifier */
+			auto-gating-enable;            /* Enable auto clock gating */
+
+			/* Channel support (master capabilities) */
+			peripheral-channel-enable;     /* Enable Peripheral channel */
+			vwire-channel-enable;          /* Enable Virtual Wire channel */
+			oob-channel-enable;            /* Enable OOB channel */
+			flash-channel-enable;          /* Enable Flash channel */
+
+			/* Timing configuration */
+			watchdog-timeout = <0xFFFF>;   /* Watchdog timeout value */
+			status = "okay";
+		};
+
+		sdhci0: sdh@d4280000 {
+			u-boot,dm-spl;
+			compatible = "spacemit,k3-sdhci";
+			reg = <0x0 0xd4280000 0x0 0x200>;
+			resets = <&reset RESET_SDH_AXI>,
+				 <&reset RESET_SDH0>;
+			reset-names = "sdh_axi", "sdh0";
+			clocks = <&ccu CLK_SDH0>,
+				 <&ccu CLK_SDH_AXI>;
+			clock-names = "sdh-io", "sdh-core";
+			bus-width = <4>;
+			broken-cd;
+			no-1-8-v;
+			cap-sd-highspeed;
+			sdh-phy-module = <0>;
+			status = "okay";
+		};
+
+		sdhci2: sdh@d4281000 {
+			compatible = "spacemit,k3-sdhci";
+			u-boot,dm-spl;
+			reg = <0x0 0xd4281000 0x0 0x200>;
+			resets = <&reset RESET_SDH_AXI>,
+				 <&reset RESET_SDH2>;
+			reset-names = "sdh_axi", "sdh2";
+			clocks = <&ccu CLK_SDH2>,
+				 <&ccu CLK_SDH_AXI>;
+			clock-names = "sdh-io", "sdh-core";
+			bus-width = <8>;
+			non-removable;
+			mmc-hs400-1_8v;
+			mmc-hs400-enhanced-strobe;
+			sdh-phy-module = <1>;
+			status = "okay";
+		};
+
+		usb3_porta_u2phy: phy@cad20000 {
+			u-boot,dm-spl;
+			compatible = "spacemit,usb2-phy";
+			reg = <0x0 0xcad20000 0x0 0x200>;
+			#phy-cells = <0>;
+			status = "okay";
+		};
+
+		usb3_porta_u3phy: phy@0cad30000{
+			u-boot,dm-spl;
+			compatible = "spacemit,k3-usb3-phy";
+			reg = <0x0 0xcad30000 0x0 0x200>,
+			      <0x0 0xd4282800 0x0 0x114>,
+			      <0x0 0xd4090000 0x0 0x200>;
+			reg-names = "puphy",
+				    "spacemit,syscon-apmu",
+				    "spacemit,syscon-apb-spare";
+			phy-nums = <1>;
+			#phy-cells = <0>;
+			status = "okay";
+		};
+
+		usb3_porta: usb3@0 {
+			u-boot,dm-spl;
+			compatible = "spacemit,k3-dwc3";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			resets = <&reset RESET_USB3_PORTA>;
+			reset-names = "ctl_rst";
+			clocks = <&ccu CLK_USB3_PORTA_BUS>;
+			clock-names = "bus";
+			ranges;
+			status = "okay";
+
+			dwc3@cad00000 {
+				reg = <0x0 0xcad00000 0x0 0x10000>;
+				dr_mode = "peripheral";
+				maximum-speed = "high-speed";
+				/* this breaks FPGA usb,
+				 * set utmi_wide if running on FPGA */
+				phy_type = "utmi";
+				snps,dis_enblslpm_quirk;
+				snps,dis_u2_susphy_quirk;
+				snps,dis_u3_susphy_quirk;
+				snps,del_phy_power_chg_quirk;
+				snps,dis-tx-ipgap-linecheck-quirk;
+				snps,parkmode-disable-ss-quirk;
+				phys = <&usb3_porta_u3phy>, <&usb3_porta_u2phy>;
+				phy-names = "usb3-phy", "usb2-phy";
+				u-boot,dm-spl;
+			};
+		};
+
+		ufs: ufs@c0e00000 {
+			compatible = "spacemit,k3-ufshci";
+			reg = <0x0 0xc0e00000 0x0 0x30000>;
+			clocks = <&ccu CLK_UFS_ACLK>,
+				 <&ccu CLK_UFS_REFCLK>;
+			clock-names = "aclk", "refclk";
+			resets = <&reset RESET_UFS_ACLK>;
+			reset-names = "aclk_reset";
+			ref-clk-freq = <19200000>;
+			status = "okay";
+			u-boot,dm-spl;
+		};
+
+		efuse: fuse@f0702800 {
+			u-boot,dm-spl;
+			compatible = "spacemit,k3-efuse";
+			reg = <0x0 0xf0702800 0x0 0x400>;
+			resets = <&reset RESET_AES_WTM>;
+			reset-names = "aes_reset";
+			/*
+			clocks = <&ccu CLK_AES_WTM>;
+			clock-names = "aes_core_wtm";
+			*/
+			status = "disabled";
+		};
+
+		i2c8: twsi8@d401d800 {
+			compatible = "spacemit,i2c";
+			reg = <0x0 0xd401d800 0x0 0x38>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+	};
+};
+
+&i2c8 {
+	clock-frequency = <100000>;
+	u-boot,dm-spl;
+	status = "disabled";
+
+	spm8821: pmic@41 {
+		compatible = "spacemit,spm8821";
+		reg = <0x41>;
+		bus = <8>;
+		u-boot,dm-spl;
+
+		regulators {
+			/* buck */
+			dcdc_1: DCDC_REG1 {
+				regulator-name = "dcdc1";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <3450000>;
+				/* regulator-init-microvolt = <1050000>; */
+				regulator-boot-on;
+				u-boot,dm-spl;
+				regulator-state-mem {
+					regulator-suspend-microvolt = <650000>;
+				};
+			};
+
+			dcdc_2: DCDC_REG2 {
+				regulator-name = "dcdc2";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <3450000>;
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+
+			dcdc_3: DCDC_REG3 {
+				regulator-name = "dcdc3";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <3450000>;
+				regulator-boot-on;
+				u-boot,dm-spl;
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+
+			dcdc_4: DCDC_REG4 {
+				regulator-name = "dcdc4";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <3450000>;
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+
+			dcdc_5: DCDC_REG5 {
+				regulator-name = "dcdc5";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <3450000>;
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+
+			dcdc_6: DCDC_REG6 {
+				regulator-name = "dcdc6";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <3450000>;
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+
+			/* aldo */
+			ldo_1: LDO_REG1 {
+				regulator-name = "ldo1";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <3400000>;
+				regulator-init-microvolt = <3300000>;
+				regulator-boot-on;
+				u-boot,dm-spl;
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+
+			ldo_2: LDO_REG2 {
+				regulator-name = "ldo2";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <3400000>;
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+
+			ldo_3: LDO_REG3 {
+				regulator-name = "ldo3";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <3400000>;
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+
+			ldo_4: LDO_REG4 {
+				regulator-name = "ldo4";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <3400000>;
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+
+			/* dldo */
+			ldo_5: LDO_REG5 {
+				regulator-name = "ldo5";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <3400000>;
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+
+			ldo_6: LDO_REG6 {
+				regulator-name = "ldo6";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <3400000>;
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+
+			ldo_7: LDO_REG7 {
+				regulator-name = "ldo7";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <3400000>;
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+
+			ldo_8: LDO_REG8 {
+				regulator-name = "ldo8";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <3400000>;
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+
+			ldo_9: LDO_REG9 {
+				regulator-name = "ldo9";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <3400000>;
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+
+			ldo_10: LDO_REG10 {
+				regulator-name = "ldo10";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <3400000>;
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+
+			ldo_11: LDO_REG11 {
+				regulator-name = "ldo11";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <3400000>;
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+
+			sw_2: SWITCH_REG1 {
+				regulator-name = "switch1";
+			};
+
+			power_event: SWITCH_REG2 {
+				regulator-name = "pwr-event";
+			};
+
+			power_int: SWITCH_REG3 {
+				regulator-name = "pwr-int";
+			};
+
+			rtc_ctrl: SWITCH_REG4 {
+				regulator-name = "rtc-ctrl";
+			};
+
+			rtc_event: SWITCH_REG5 {
+				regulator-name = "rtc-event";
+			};
+
+			rtc_irq: SWITCH_REG6 {
+				regulator-name = "rtc-irq";
+			};
+
+			power_down: SWITCH_REG7 {
+				regulator-name = "power-down";
+			};
+
+			reboot_flag: SWITCH_REG8 {
+				regulator-name = "reboot-flag";
+			};
+
+			wdt_pm8821: PMIC_WDT {
+				wdt-name = "wdt_pm8821";
+			};
+		};
+	};
+
+	mpq8655: mpq8655@30 {
+		compatible = "spacemit,mpq8655";
+		reg = <0x30>;
+		bus = <8>;
+		u-boot,dm-spl;
+
+		regulators {
+			u-boot,dm-spl;
+
+			edcdc_1: EDCDC_REG1 {
+				regulator-name = "edcdc1";
+				regulator-min-microvolt = <534000>;
+				regulator-max-microvolt = <880000>;
+				regulator-init-microvolt = <880000>;
+				regulator-boot-on;
+				u-boot,dm-spl;
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+		};
+	};
+
+	tda38740_1: tda38740@42 {
+		compatible = "spacemit,tda38740-1";
+		reg = <0x42>;
+		bus = <8>;
+		u-boot,dm-spl;
+
+		regulators {
+			u-boot,dm-spl;
+
+			tda38740_tdcdc_1: TDCDC_REG1 {
+				regulator-name = "tdcdc1";
+				regulator-min-microvolt = <534000>;
+				regulator-max-microvolt = <1000000>;
+				regulator-init-microvolt = <950000>;
+				regulator-boot-on;
+				u-boot,dm-spl;
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+		};
+	};
+
+	tda38740_2: tda38740@4f {
+		compatible = "spacemit,tda38740-2";
+		reg = <0x4f>;
+		bus = <8>;
+		u-boot,dm-spl;
+
+		regulators {
+			u-boot,dm-spl;
+
+			tda38740_tdcdc_2: TDCDC_REG2 {
+				regulator-name = "tdcdc2";
+				regulator-min-microvolt = <534000>;
+				regulator-max-microvolt = <1000000>;
+				regulator-init-microvolt = <950000>;
+				regulator-boot-on;
+				u-boot,dm-spl;
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+		};
+	};
+
+	is6615a_1: is6615a@42 {
+		compatible = "spacemit,is6615a-1";
+		reg = <0x42>;
+		bus = <8>;
+		u-boot,dm-spl;
+
+		regulators {
+			u-boot,dm-spl;
+
+			is6615a_edcdc_1: IDCDC_REG1 {
+				regulator-name = "idcdc1";
+				regulator-min-microvolt = <534000>;
+				regulator-max-microvolt = <1000000>;
+				regulator-init-microvolt = <950000>;
+				regulator-boot-on;
+				u-boot,dm-spl;
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+		};
+	};
+
+	is6615a_2: is6615a@4f {
+		compatible = "spacemit,is6615a-2";
+		reg = <0x4f>;
+		bus = <8>;
+		u-boot,dm-spl;
+
+		regulators {
+			u-boot,dm-spl;
+
+			is6615a_idcdc_2: IDCDC_REG2 {
+				regulator-name = "idcdc2";
+				regulator-min-microvolt = <534000>;
+				regulator-max-microvolt = <1000000>;
+				regulator-init-microvolt = <950000>;
+				regulator-boot-on;
+				u-boot,dm-spl;
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+		};
+	};
+
+	au4562: au4562@75 {
+		compatible = "spacemit,au4562";
+		reg = <0x75>;
+		bus = <8>;
+		u-boot,dm-spl;
+
+		regulators {
+			u-boot,dm-spl;
+
+			au4562_adcdc_1: ADCDC_REG1 {
+				regulator-name = "adcdc1";
+				regulator-min-microvolt = <540000>;
+				regulator-max-microvolt = <1000000>;
+				regulator-init-microvolt = <950000>;
+				regulator-boot-on;
+				u-boot,dm-spl;
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+
+			au4562_adcdc_2: ADCDC_REG2 {
+				regulator-name = "adcdc2";
+				regulator-min-microvolt = <540000>;
+				regulator-max-microvolt = <1000000>;
+				regulator-init-microvolt = <950000>;
+				regulator-boot-on;
+				u-boot,dm-spl;
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+		};
+	};
+};
+
+&cpus {
+	timebase-frequency = <24000000>;
+	clocks = <&ccu CLK_TOP_DCLK>,
+		 <&ccu CLK_AXICLK>,
+		 <&ccu CLK_CCI550>,
+		 <&ccu CLK_CPU_C0_CORE>,
+		 <&ccu CLK_CPU_C1_CORE>,
+		 <&ccu CLK_CPU_C2_CORE>,
+		 <&ccu CLK_CPU_C3_CORE>,
+		 <&ccu CLK_PLL3>,
+		 <&ccu CLK_PLL4>,
+		 <&ccu CLK_PLL5>,
+		 <&ccu CLK_PLL8>,
+		 <&ccu CLK_PLL3_D1>,
+		 <&ccu CLK_CPU_C1_PLL_SRC>,
+		 <&ccu CLK_PLL5_D1>,
+		 <&ccu CLK_CPU_C3_PLL_SRC>;
+	clock-names = "topd", "axi", "cci", "cluster0", "cluster1", "cluster2", "cluster3",
+		       "pll3", "pll4", "pll5", "pll8", "pll_src3", "clt1_pll_src", "pll_src5", "clt3_pll_src";
+	topd_frequency = <800000000>;
+	axi_frequency =  <307000000>;
+	cci_frequency =  <1228000000>;
+	cluster0_frequency = <2200000000>;
+	cluster1_frequency = <2200000000>;
+	cluster2_frequency = <1800000000>;
+	cluster3_frequency = <1800000000>;
+};

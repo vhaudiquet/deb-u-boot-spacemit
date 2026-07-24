@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Secure Boot configuration for K3
+ * RSA verification keys and signature nodes
+ *
+ * Copyright (C) 2025 SPACEMIT Micro Limited
+ */
+
+/*
+ * Include public key for SPL stage (verifying U-Boot)
+ */
+#ifdef CONFIG_SPL_RSA_VERIFY
+#include "key/uboot_key_pub.dtsi"
+#endif
+
+/*
+ * Include public key for U-Boot stage (verifying kernel)
+ */
+#ifndef CONFIG_SPL_BUILD
+#ifdef CONFIG_RSA_VERIFY
+#include "key/kernel_key_pub.dtsi"
+#endif
+#endif
+
+/*
+ * Define signature node macro for SPL DTS
+ * Usage: Add SECURE_BOOT_SIGNATURE_NODE to device tree root
+ */
+#ifdef CONFIG_SPL_RSA_VERIFY
+#define SECURE_BOOT_SIGNATURE_NODE \
+	signature { \
+		u-boot,dm-spl; \
+		key-uboot_key_prv { \
+			u-boot,dm-spl; \
+		}; \
+	};
+#else
+#define SECURE_BOOT_SIGNATURE_NODE
+#endif

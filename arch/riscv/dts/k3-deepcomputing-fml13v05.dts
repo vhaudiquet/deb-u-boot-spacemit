@@ -1,0 +1,710 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * finch board's base device tree configure.
+ *
+ * Copyright (C) 2025 SPACEMIT Micro Limited
+ */
+
+#include "k3.dtsi"
+#include "k3-pinctrl.dtsi"
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/usb/pd.h>
+
+/ {
+	model = "DeepComputing FML13V05";
+	compatible = "deepcomputing,fml13v05", "spacemit,k3";
+
+	vcc_pcie4: regulator-vcc-pcie4 {
+		compatible = "regulator-fixed";
+		regulator-name = "pcie4 Vcc";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio 41 0>;
+		enable-active-high;
+		regulator-boot-on;
+		status = "okay";
+	};
+};
+
+&cpus {
+	timebase-frequency = <24000000>;
+};
+
+&pinctrl {
+	espi0_grp {
+		power-source = <1800>;
+	};
+
+	usb30_drd_dir_0_cfg: usb30_drd_dir-0-cfg {
+		pinctrl-single,pins =<
+			K3_PADCONF(GPIO_86, MUX_MODE6, (EDGE_NONE | PULL_UP | PAD_DS8)) /* usb30 drd dir */
+		>;
+		power-source = <1800>;
+	};
+
+	pcie0_1_grp {
+		pinctrl-single,pins =<
+			K3_PADCONF(GPIO_79, MUX_MODE5, (EDGE_NONE | PULL_UP | PAD_DS15))
+			K3_PADCONF(GPIO_81, MUX_MODE5, (EDGE_NONE | PULL_UP | PAD_DS15))
+		>;
+		power-source = <1800>;
+	};
+
+	qspi_grp {
+		power-source = <1800>;
+	};
+
+	qspi_cs0_grp {
+		power-source = <1800>;
+	};
+
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&pwm18 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm18_2>;
+	status = "okay";
+};
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c1_3>;
+	status = "okay";
+
+	tcpc@25 {
+		compatible = "fcs,fusb301";
+		reg = <0x25>;
+
+		connector {
+			compatible = "usb-c-connector";
+			label = "USB-C";
+			power-role = "dual";
+			data-role = "dual";
+			try-power-role = "sink";
+			source-pdos = <PDO_FIXED(5000, 2500, PDO_FIXED_USB_COMM)>;
+			sink-pdos = <PDO_FIXED(5000, 1400, PDO_FIXED_USB_COMM)>;
+			op-sink-microwatt = <15000000>;
+			self-powered;
+		};
+	};
+};
+
+&i2c2 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c2_1>;
+	status = "okay";
+
+	eeprom@50{
+		compatible = "atmel,24c02";
+		reg = <0x50>;
+		status = "okay";
+	};
+};
+
+&usb2_host_u2phy {
+	status = "disabled";
+};
+
+&usb2_host {
+	/* Hub with BT, FG, CAM */
+	status = "disabled";
+};
+
+&usb3_porta_u2phy {
+	status = "okay";
+};
+
+&usb3_porta_u3phy {
+	/* dual phy selection is auto detect from GPIO86(SS_SW_3V3) */
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb30_drd_dir_0_cfg>;
+	status = "okay";
+};
+
+&usb3_porta {
+	status = "okay";
+	u-boot,dm-spl;
+	dwc3@cad00000 {
+		dr_mode = "peripheral";
+		u-boot,dm-spl;
+	};
+};
+
+&usb3_portb_u2phy {
+	status = "okay";
+};
+
+&usb3_portb_u3phy {
+       status = "okay";
+};
+
+&usb3_portb {
+	/* TypeC */
+	status = "okay";
+};
+
+&usb3_portc_u2phy {
+	status = "okay";
+};
+
+&usb3_portc_u3phy {
+       status = "okay";
+};
+
+&usb3_portc {
+	/* TypeC */
+	status = "okay";
+};
+
+&usb3_portd_u2phy {
+	status = "okay";
+};
+
+&usb3_portd_u3phy {
+       status = "okay";
+};
+
+&usb3_portd {
+	/* TypeC (USB3/DP/Power) (with ANX7447 chip) */
+	status = "okay";
+};
+
+&pcie_phy0 {
+	status = "okay";
+};
+
+&pcie_phy1 {
+	status = "okay";
+};
+
+&pcie0_rc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pcie0_1>;
+	num-lanes = <4>;
+	phys = <&pcie_phy0>, <&pcie_phy1>;
+	phy-names = "pcie-phy0", "pcie-phy1";
+
+	status = "okay";
+};
+
+&qspi {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_qspi &pinctrl_qspi_cs0>;
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <26500000>;
+		m25p,fast-read;
+		broken-flash-reset;
+		status = "okay";
+	};
+};
+
+&spi0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ssp0_0>;
+
+	flash@1 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <26500000>;
+		m25p,fast-read;
+		broken-flash-reset;
+		status = "okay";
+	};
+};
+
+&espi0{
+	status = "okay";
+
+	ec: ec@0 {
+		compatible = "google,cros-ec-espi";
+		reg = <0x0>;
+
+		/* eSPI VW GPIO interrupt configuration */
+		espi-vw-gpio-wire = <0>;       /* Wire 0 within the group */
+		espi-vw-gpio-index = <0x82>;   /* VM index 0x82 (Group 2/130) */
+
+		ec-interrupt = <&gpio 43 0>;
+
+		i2c_tunnel: i2c-tunnel {
+			compatible = "google,cros-ec-i2c-tunnel";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			google,remote-bus = <1>;
+		};
+	};
+};
+
+&ufs {
+	status = "okay";
+};
+
+&sdhci0 {
+	pinctrl-names = "default","uhs";
+	pinctrl-0 = <&pinctrl_mmc1>;
+	pinctrl-1 = <&pinctrl_mmc1_uhs>;
+	bus-width = <4>;
+	cd-gpios = <&gpio 88 0>;
+	cd-inverted;
+	vqmmc-supply = <&ldo_1>;
+	clock-frequency = <204800000>;
+	spacemit,tx_delaycode = <0x1f>;
+	sdh-phy-module = <0>;
+	status = "okay";
+};
+
+&sdhci2 {
+	bus-width = <8>;
+	non-removable;
+	mmc-hs400-1_8v;
+	mmc-hs400-enhanced-strobe;
+	clock-frequency = <375000000>;
+	sdh-phy-module = <1>;
+	status = "okay";
+};
+
+&i2c8 {
+	clock-frequency = <100000>;
+	u-boot,dm-spl;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c8>;
+	status = "okay";
+
+	spm8821: pmic@41 {
+		compatible = "spacemit,spm8821";
+		reg = <0x41>;
+		bus = <8>;
+		u-boot,dm-spl;
+
+		regulators {
+			/* buck */
+			dcdc_1: DCDC_REG1 {
+				regulator-name = "dcdc1";
+				regulator-min-microvolt = <1050000>;
+				regulator-max-microvolt = <1050000>;
+				regulator-always-on;
+				regulator-boot-on;
+				u-boot,dm-spl;
+				regulator-state-mem {
+					regulator-suspend-microvolt = <1050000>;
+				};
+			};
+
+			dcdc_2: DCDC_REG2 {
+				regulator-name = "dcdc2";
+				regulator-min-microvolt = <1050000>;
+				regulator-max-microvolt = <1050000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-state-mem {
+					regulator-suspend-microvolt = <1050000>;
+				};
+			};
+
+			dcdc_3: DCDC_REG3 {
+				regulator-name = "dcdc3";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <800000>;
+				regulator-always-on;
+				regulator-boot-on;
+				u-boot,dm-spl;
+				regulator-state-mem {
+					regulator-suspend-microvolt = <800000>;
+				};
+			};
+
+			dcdc_4: DCDC_REG4 {
+				regulator-name = "dcdc4";
+				regulator-min-microvolt = <2100000>;
+				regulator-max-microvolt = <2100000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-state-mem {
+					regulator-suspend-microvolt = <2100000>;
+				};
+			};
+
+			dcdc_5: DCDC_REG5 {
+				regulator-name = "dcdc5";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-state-mem {
+					regulator-suspend-microvolt = <1800000>;
+				};
+			};
+
+			dcdc_6: DCDC_REG6 {
+				regulator-name = "dcdc6";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <600000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-state-mem {
+					regulator-suspend-microvolt = <500000>;
+				};
+			};
+
+			/* aldo */
+			ldo_1: LDO_REG1 {
+				regulator-name = "ldo1";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+				regulator-boot-on;
+				u-boot,dm-spl;
+				regulator-state-mem {
+					regulator-suspend-microvolt = <1800000>;
+				};
+			};
+
+			ldo_2: LDO_REG2 {
+				regulator-name = "ldo2";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-state-mem {
+					regulator-suspend-microvolt = <1800000>;
+				};
+			};
+
+			ldo_3: LDO_REG3 {
+				regulator-name = "ldo3";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <3400000>;
+				regulator-state-mem {
+					regulator-suspend-microvolt = <3300000>;
+				};
+			};
+
+			ldo_4: LDO_REG4 {
+				regulator-name = "ldo4";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-state-mem {
+					regulator-suspend-microvolt = <3300000>;
+				};
+			};
+
+			/* dldo */
+			ldo_5: LDO_REG5 {
+				regulator-name = "ldo5";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <1200000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-state-mem {
+					regulator-suspend-microvolt = <1200000>;
+				};
+			};
+
+			ldo_6: LDO_REG6 {
+				regulator-name = "ldo6";
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <900000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-state-mem {
+					regulator-suspend-microvolt = <900000>;
+				};
+			};
+
+			ldo_7: LDO_REG7 {
+				regulator-name = "ldo7";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <800000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-state-mem {
+					regulator-suspend-microvolt = <800000>;
+				};
+			};
+
+			ldo_8: LDO_REG8 {
+				regulator-name = "ldo8";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-boot-on;
+				regulator-state-mem {
+					regulator-suspend-microvolt = <1800000>;
+				};
+			};
+
+			ldo_9: LDO_REG9 {
+				regulator-name = "ldo9";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-state-mem {
+					regulator-suspend-microvolt = <1800000>;
+				};
+			};
+
+			ldo_10: LDO_REG10 {
+				regulator-name = "ldo10";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-state-mem {
+					regulator-suspend-microvolt = <1800000>;
+				};
+			};
+
+			ldo_11: LDO_REG11 {
+				regulator-name = "ldo11";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-state-mem {
+					regulator-suspend-microvolt = <1800000>;
+				};
+			};
+
+			sw_2: SWITCH_REG1 {
+				regulator-name = "switch1";
+			};
+
+			power_event: SWITCH_REG2 {
+				regulator-name = "pwr-event";
+			};
+
+			power_int: SWITCH_REG3 {
+				regulator-name = "pwr-int";
+			};
+
+			rtc_ctrl: SWITCH_REG4 {
+				regulator-name = "rtc-ctrl";
+			};
+
+			rtc_event: SWITCH_REG5 {
+				regulator-name = "rtc-event";
+			};
+
+			rtc_irq: SWITCH_REG6 {
+				regulator-name = "rtc-irq";
+			};
+
+			power_down: SWITCH_REG7 {
+				regulator-name = "power-down";
+			};
+
+			reboot_flag: SWITCH_REG8 {
+				regulator-name = "reboot-flag";
+			};
+
+			wdt_pm8821: PMIC_WDT {
+				wdt-name = "wdt_pm8821";
+			};
+		};
+	};
+
+	mpq8655: mpq8655@30 {
+		compatible = "spacemit,mpq8655";
+		reg = <0x30>;
+		bus = <8>;
+		u-boot,dm-spl;
+
+		regulators {
+			u-boot,dm-spl;
+
+			edcdc_1: EDCDC_REG1 {
+				regulator-name = "edcdc1";
+				regulator-min-microvolt = <600000>;
+				regulator-max-microvolt = <1000000>;
+				regulator-init-microvolt = <880000>;
+				regulator-always-on;
+				regulator-boot-on;
+				u-boot,dm-spl;
+			};
+		};
+	};
+};
+
+&backlight {
+	pwms = <&pwm18 0 2000>;
+	default-brightness-level = <7>;
+	status = "okay";
+};
+
+&dpu {
+	status = "okay";
+
+	dpu_out: port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		dpu_out_edp0: endpoint@0 {
+			reg = <1>;
+			remote-endpoint = <&edp0_in_dpu>;
+		};
+
+		dpu_out_dp1: endpoint@1 {
+			reg = <1>;
+			remote-endpoint = <&dp1_in_dpu>;
+		};
+	};
+};
+
+&edp0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_dp0_1>;
+	power-gpios = <&gpio 101 0>;
+	enable-gpios = <&gpio 118 0>;
+	backlight = <&backlight>;
+	status = "okay";
+
+	ports {
+		edp0_in: port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			edp0_in_dpu: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&dpu_out_edp0>;
+			};
+		};
+	};
+};
+
+&dp1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_dp1_1>;
+	status = "okay";
+
+	ports {
+		dp1_in: port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			dp1_in_dpu: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&dpu_out_dp1>;
+			};
+		};
+	};
+};
+
+&efuse {
+	status = "okay";
+};
+
+&ec {
+	keyboard-controller {
+		compatible = "google,cros-ec-keyb";
+		keypad,num-rows = <8>;
+		keypad,num-columns = <16>;
+		google,needs-ghost-filter;
+
+		linux,keymap = <
+			/* Row 0 */
+			MATRIX_KEY(0x00, 0x00, KEY_C)           /* ID: 48 */
+			MATRIX_KEY(0x00, 0x01, KEY_DELETE)      /* ID: 76 */
+			MATRIX_KEY(0x00, 0x02, KEY_Q)           /* ID: 17 */
+			MATRIX_KEY(0x00, 0x03, KEY_RIGHTALT)    /* ID: 62 */
+			MATRIX_KEY(0x00, 0x05, KEY_X)           /* ID: 47 */
+			MATRIX_KEY(0x00, 0x06, KEY_V)           /* ID: 49 */
+			MATRIX_KEY(0x00, 0x07, KEY_M)           /* ID: 52 */
+			MATRIX_KEY(0x00, 0x08, KEY_DOT)         /* ID: 54 */
+			MATRIX_KEY(0x00, 0x09, KEY_RIGHTSHIFT)  /* ID: 57 */
+			MATRIX_KEY(0x00, 0x0a, KEY_COMMA)       /* ID: 53 */
+			MATRIX_KEY(0x00, 0x0c, KEY_RIGHTCTRL)   /* ID: 64 */
+			MATRIX_KEY(0x00, 0x0d, KEY_SLASH)       /* ID: 55 */
+			MATRIX_KEY(0x00, 0x0e, KEY_APOSTROPHE)  /* ID: 41 (' ) */
+
+			/* Row 1 */
+			MATRIX_KEY(0x01, 0x03, KEY_LEFTALT)     /* ID: 60 */
+			MATRIX_KEY(0x01, 0x04, KEY_SPACE)       /* ID: 61 */
+			MATRIX_KEY(0x01, 0x05, KEY_Z)           /* ID: 46 */
+			MATRIX_KEY(0x01, 0x06, KEY_B)           /* ID: 50 */
+			MATRIX_KEY(0x01, 0x07, KEY_N)           /* ID: 51 */
+			MATRIX_KEY(0x01, 0x08, KEY_DOWN)        /* ID: 84-1 */
+			MATRIX_KEY(0x01, 0x09, KEY_LEFTSHIFT)   /* ID: 44 */
+			MATRIX_KEY(0x01, 0x0c, KEY_LEFTCTRL)    /* ID: 58 */
+			MATRIX_KEY(0x01, 0x0d, KEY_UP)          /* ID: 83-1 */
+			MATRIX_KEY(0x01, 0x0e, KEY_ENTER)       /* ID: 43 */
+			MATRIX_KEY(0x01, 0x0f, KEY_F8)          /* ID: 119 */
+
+			/* Row 2 */
+			MATRIX_KEY(0x02, 0x02, KEY_FN)          /* ID: 59 */
+			MATRIX_KEY(0x02, 0x04, KEY_E)           /* ID: 19 */
+			MATRIX_KEY(0x02, 0x05, KEY_F2)          /* ID: 113 */
+			MATRIX_KEY(0x02, 0x06, KEY_G)           /* ID: 35 */
+			MATRIX_KEY(0x02, 0x07, KEY_H)           /* ID: 36 */
+			MATRIX_KEY(0x02, 0x08, KEY_BACKSLASH)   /* ID: 29/42 */
+			MATRIX_KEY(0x02, 0x0a, KEY_F7)          /* ID: 118 */
+			MATRIX_KEY(0x02, 0x0d, KEY_MINUS)       /* ID: 12 */
+			MATRIX_KEY(0x02, 0x0f, KEY_RIGHT)       /* ID: 89-1 */
+
+			/* Row 3 */
+			MATRIX_KEY(0x03, 0x01, KEY_LEFTMETA)    /* ID: 127 (Win) */
+			MATRIX_KEY(0x03, 0x02, KEY_TAB)         /* ID: 16 */
+			MATRIX_KEY(0x03, 0x04, KEY_F4)          /* ID: 115 */
+			MATRIX_KEY(0x03, 0x05, KEY_F1)          /* ID: 112 */
+			MATRIX_KEY(0x03, 0x06, KEY_T)           /* ID: 21 */
+			MATRIX_KEY(0x03, 0x07, KEY_Y)           /* ID: 22 */
+			MATRIX_KEY(0x03, 0x08, KEY_O)           /* ID: 25 */
+			MATRIX_KEY(0x03, 0x0a, KEY_F6)          /* ID: 117 */
+			MATRIX_KEY(0x03, 0x0b, KEY_F9)          /* ID: 120 */
+			MATRIX_KEY(0x03, 0x0d, KEY_F12)         /* ID: 123 */
+
+			/* Row 4 */
+			MATRIX_KEY(0x04, 0x02, KEY_GRAVE)       /* ID: 1 (~) */
+			MATRIX_KEY(0x04, 0x04, KEY_CAPSLOCK)    /* ID: 30 */
+			MATRIX_KEY(0x04, 0x05, KEY_S)           /* ID: 32 */
+			MATRIX_KEY(0x04, 0x06, KEY_5)           /* ID: 6 */
+			MATRIX_KEY(0x04, 0x07, KEY_6)           /* ID: 7 */
+			MATRIX_KEY(0x04, 0x08, KEY_F10)         /* ID: 121 */
+			MATRIX_KEY(0x04, 0x0a, KEY_F5)          /* ID: 116 */
+			MATRIX_KEY(0x04, 0x0d, KEY_0)           /* ID: 11 */
+			MATRIX_KEY(0x04, 0x0e, KEY_EQUAL)       /* ID: 13 */
+
+			/* Row 5 */
+			MATRIX_KEY(0x05, 0x02, KEY_1)           /* ID: 2 */
+			MATRIX_KEY(0x05, 0x04, KEY_3)           /* ID: 4 */
+			MATRIX_KEY(0x05, 0x05, KEY_2)           /* ID: 3 */
+			MATRIX_KEY(0x05, 0x06, KEY_4)           /* ID: 5 */
+			MATRIX_KEY(0x05, 0x07, KEY_7)           /* ID: 8 */
+			MATRIX_KEY(0x05, 0x08, KEY_9)           /* ID: 10 */
+			MATRIX_KEY(0x05, 0x0a, KEY_8)           /* ID: 9 */
+			MATRIX_KEY(0x05, 0x0d, KEY_P)           /* ID: 26 */
+			MATRIX_KEY(0x05, 0x0e, KEY_BACKSPACE)   /* ID: 15 */
+
+			/* Row 6 */
+			MATRIX_KEY(0x06, 0x04, KEY_F3)          /* ID: 114 */
+			MATRIX_KEY(0x06, 0x05, KEY_W)           /* ID: 18 */
+			MATRIX_KEY(0x06, 0x06, KEY_R)           /* ID: 20 */
+			MATRIX_KEY(0x06, 0x07, KEY_U)           /* ID: 23 */
+			MATRIX_KEY(0x06, 0x08, KEY_F11)         /* ID: 122 */
+			MATRIX_KEY(0x06, 0x0a, KEY_I)           /* ID: 24 */
+			MATRIX_KEY(0x06, 0x0b, KEY_LEFT)        /* ID: 79-1 */
+			MATRIX_KEY(0x06, 0x0d, KEY_LEFTBRACE)   /* ID: 27 ([) */
+			MATRIX_KEY(0x06, 0x0e, KEY_RIGHTBRACE)  /* ID: 28 (]) */
+
+			/* Row 7 */
+			MATRIX_KEY(0x07, 0x02, KEY_A)           /* ID: 31 */
+			MATRIX_KEY(0x07, 0x05, KEY_ESC)         /* ID: 110 */
+			MATRIX_KEY(0x07, 0x06, KEY_F)           /* ID: 34 */
+			MATRIX_KEY(0x07, 0x07, KEY_J)           /* ID: 37 */
+			MATRIX_KEY(0x07, 0x08, KEY_L)           /* ID: 39 */
+			MATRIX_KEY(0x07, 0x0a, KEY_K)           /* ID: 38 */
+			MATRIX_KEY(0x07, 0x0d, KEY_SEMICOLON)   /* ID: 40 */
+			MATRIX_KEY(0x07, 0x0e, KEY_D)           /* ID: 33 */
+		>;
+	};
+};

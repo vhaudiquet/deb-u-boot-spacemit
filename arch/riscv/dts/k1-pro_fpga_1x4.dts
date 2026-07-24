@@ -1,0 +1,58 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/* Copyright (c) 2022 Spacemit, Inc */
+
+/dts-v1/;
+
+#include "k1-pro_1x4.dtsi"
+#include "k1-pro_pinctrl.dtsi"
+/ {
+	model = "spacemit k1-pro fpga board";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0xa0 0x00000000 0x1 0x00000000>;
+		u-boot,dm-spl;
+	};
+
+	chosen {
+		bootargs = "earlycon=sbi console=ttyS0,115200n8 debug loglevel=8,initcall_debug=1 rdinit=/init.tmp";
+		stdout-path = "serial0:115200n8";
+		u-boot,dm-spl;
+	};
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&usbdrd3 {
+	status = "disabled";
+};
+
+&usbotg {
+	dr_mode = "peripheral";
+	status = "okay";
+};
+
+&mmc0 {
+	status = "okay";
+};
+
+&mmc1 {
+	status = "okay";
+};
+
+&spi0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_qspi0>;
+};
+
+&eth0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_gmac>;
+	status = "okay";
+};
+
+&pcie5 {
+	status = "disabled";
+};

@@ -1,0 +1,1430 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * finch board's base device tree configure.
+ *
+ * Copyright (C) 2025 SPACEMIT Micro Limited
+ */
+
+/dts-v1/;
+
+#include <config.h>
+#include "k3-cpus.dtsi"
+#include <dt-bindings/reset/reset-spacemit-k3.h>
+#include <dt-bindings/clock/spacemit-k3-clock.h>
+#include <dt-bindings/power-domain/k3-pmu.h>
+#include "secure_boot.dtsi"
+
+#ifdef CONFIG_RISCV_OPTEE_SUPPORT
+#include "k3-optee.dtsi"
+#endif
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <2>;
+	compatible = "spacemit,k3";
+
+	chosen {
+		stdout-path = "uart0:115200";
+	};
+
+	aliases {
+		console = &uart0;
+		mmc0 = &sdhci0;
+		mmc1 = &sdhci1;
+		mmc2 = &sdhci2;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+		i2c4 = &i2c4;
+		i2c5 = &i2c5;
+		i2c6 = &i2c6;
+		i2c8 = &i2c8;
+	};
+
+	clocks {
+		clk0: osc {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <66667000>;
+		};
+		vctcxo_24: vctcxo_24 {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <24000000>;
+			clock-output-names = "vctcxo_24";
+		};
+		vctcxo_3: vctcxo_3 {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <3000000>;
+			clock-output-names = "vctcxo_3";
+		};
+		vctcxo_1: vctcxo_1 {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <1000000>;
+			clock-output-names = "vctcxo_1";
+		};
+		pll1_vco: pll1_vco {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <24576000>;
+			clock-output-names = "pll1_vco";
+		};
+		osc_32k: osc_32k {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <32768>;
+			clock-output-names = "osc_32k";
+		};
+		clk_dummy: clk_dummy {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <0>;
+			clock-output-names = "clk_dummy";
+		};
+	};
+
+	memory@100000000 {
+		u-boot,dm-spl;
+		device_type = "memory";
+		reg = <0x1 0x00000000 0x0 0x80000000>;
+	};
+
+	soc {
+		u-boot,dm-spl;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		compatible = "simple-bus";
+		ranges;
+
+		clint0: clint@f1810000 {
+			compatible = "riscv,clint0";
+			interrupts-extended = <&cpu0_intc  3 &cpu0_intc  7
+				&cpu1_intc  3 &cpu1_intc  7
+				&cpu2_intc  3 &cpu2_intc  7
+				&cpu3_intc  3 &cpu3_intc  7
+				&cpu4_intc  3 &cpu4_intc  7
+				&cpu5_intc  3 &cpu5_intc  7
+				&cpu6_intc  3 &cpu6_intc  7
+				&cpu7_intc  3 &cpu7_intc  7
+				&cpu8_intc  3 &cpu8_intc  7
+				&cpu9_intc  3 &cpu9_intc  7
+				&cpu10_intc  3 &cpu10_intc  7
+				&cpu11_intc  3 &cpu11_intc  7
+				&cpu12_intc  3 &cpu12_intc  7
+				&cpu13_intc  3 &cpu13_intc  7
+				&cpu14_intc  3 &cpu14_intc  7
+				&cpu15_intc  3 &cpu15_intc  7
+			>;
+			reg = <0x0 0xf1810000 0x0 0x00010000>;
+			clint,has-no-64bit-mmio;
+		};
+
+		maplic: interrupt-controller@f1800000 {
+			compatible = "riscv,aplic";
+			msi-parent = <&mimsic>;
+			/*aplic config*/
+			reg = <0x0 0xf1800000 0x0 0x4000>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			/*the number of wired interrupt sources*/
+			riscv,num-sources = <512>;
+			riscv,children = <&saplic>;
+			/*M-mode delegate S-mode*/
+			riscv,delegate = <&saplic 1 512>;
+			status = "okay";
+		};
+
+		saplic: interrupt-controller@e0804000 {
+			compatible = "riscv,aplic";
+			/*aplic config*/
+			reg = <0x0 0xe0804000 0x0 0x4000>;
+			msi-parent = <&simsic>;
+			#interrupt-cells = <2>;
+			interrupt-controller;
+			/*the number of wired interrupt sources*/
+			riscv,num-sources = <512>;
+			status = "disabled";
+		};
+
+		mimsic: interrupt-controller@f1000000 {
+			compatible = "riscv,imsics";
+			interrupts-extended = <&cpu0_intc 11 &cpu1_intc 11
+					&cpu2_intc 11 &cpu3_intc 11
+					&cpu4_intc 11 &cpu5_intc 11
+					&cpu6_intc 11 &cpu7_intc 11
+					&cpu8_intc 11 &cpu9_intc 11
+					&cpu10_intc 11 &cpu11_intc 11
+					&cpu12_intc 11 &cpu13_intc 11
+					&cpu14_intc 11 &cpu15_intc 11>;
+			reg = <0x0 0xf1000000 0x0 0x10000>;
+			interrupt-controller;
+			#interrupt-cells = <0>;
+			#msi-cells = <0>;
+			msi-controller;
+			/* Number of interrupt identities: 511 */
+			riscv,num-ids = <511>;
+			status = "okay";
+		};
+
+		simsic: interrupt-controller@e0400000 {
+			compatible = "riscv,imsics";
+			interrupts-extended = <&cpu0_intc 9 &cpu1_intc 9
+				&cpu2_intc 9 &cpu3_intc 9
+				&cpu4_intc 9 &cpu5_intc 9
+				&cpu6_intc 9 &cpu7_intc 9
+				&cpu8_intc 9 &cpu9_intc 9
+				&cpu10_intc 9 &cpu11_intc 9
+				&cpu12_intc 9 &cpu13_intc 9
+				&cpu14_intc 9 &cpu15_intc 9>;
+			reg = <0x0 0xe0400000 0x0 0x400000>;
+			interrupt-controller;
+			#interrupt-cells = <0>;
+			#msi-cells = <0>;
+			msi-controller;
+			/* Number of interrupt identities: 511 */
+			riscv,num-ids = <511>;
+			/* Number of guest interrupt identities: 511 */
+			riscv,num-guest-ids = <511>;
+			/* Number of HART index bits: 4 (2^4 = 16 harts) */
+			riscv,hart-index-bits = <4>;
+			/*
+			 * Number of guest index bits: 6
+			 *   2^6 = 64 interrupt files
+			 *       = 1 s-level interrupt file + 63 vs-level interrupt files
+			 *
+			 * But on K3,
+			 *   X100: only 7 of the 63 vs-level interrupt files are valid.
+			 *   A100: no valid vs-level interrupt files.
+			 */
+			riscv,guest-index-bits = <6>;
+			status = "okay";
+		};
+
+		ccu: clock-controller@d4050000 {
+			compatible = "spacemit,k3-ccu";
+			reg = <0x0 0xd4050000 0x0 0x209c>,
+				<0x0 0xd4282800 0x0 0x400>,
+				<0x0 0xd4015000 0x0 0x1000>,
+				<0x0 0xd4090000 0x0 0x1000>,
+				<0x0 0xd4282c00 0x0 0x400>,
+				<0x0 0xd8440000 0x0 0x98>,
+				<0x0 0xc0000000 0x0 0x4280>,
+				<0x0 0xf0610000 0x0 0x20>,
+				<0x0 0xc0880000 0x0 0xd100>;
+			reg-names = "mpmu", "apmu", "apbc", "apbs", "ciu", "dciu", "ddrc", "apbc2", "rcpu";
+			clocks = <&vctcxo_24>, <&vctcxo_3>, <&vctcxo_1>, <&pll1_vco>,
+				<&osc_32k>, <&clk_dummy>;
+			clock-names = "vctcxo_24", "vctcxo_3", "vctcxo_1", "pll1_vco",
+				"osc_32k", "clk_dummy";
+			#clock-cells = <1>;
+			status = "okay";
+		};
+
+		reset: reset-controller@d4050000 {
+			compatible = "spacemit,k3-reset";
+			reg = <0x0 0xd4050000 0x0 0x209c>,
+				<0x0 0xd4282800 0x0 0x400>,
+				<0x0 0xd4015000 0x0 0x1000>,
+				<0x0 0xd4090000 0x0 0x1000>,
+				<0x0 0xd4282c00 0x0 0x400>,
+				<0x0 0xd8440000 0x0 0x98>,
+				<0x0 0xc0000000 0x0 0x4280>,
+				<0x0 0xf0610000 0x0 0x20>,
+				<0x0 0xc0880000 0x0 0xd100>;
+			reg-names = "mpmu", "apmu", "apbc", "apbs", "ciu", "dciu", "ddrc", "apbc2", "rcpu";
+			#reset-cells = <1>;
+			status = "okay";
+		};
+
+		gpio: gpio@d4019000 {
+			compatible = "spacemit,k3-gpio";
+			reg = <0x0 0xd4019000 0x0 0x800>;
+			gpio-controller;
+			gpio-count = <128>;
+			#gpio-cells = <2>;
+			interrupts = <58 4>;
+			clocks = <&ccu CLK_GPIO>;
+			interrupt-names = "gpio_mux";
+			interrupt-parent = <&saplic>;
+		};
+
+		pinctrl: pinctrl@d401e000 {
+			compatible = "pinctrl-single";
+			reg = <0x0 0xd401e000 0x0 0x400>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			#pinctrl-cells = <2>;
+			#gpio-range-cells = <3>;
+			pinctrl-single,register-width = <32>;
+			pinctrl-single,function-mask = <0xff77>;
+
+			range: gpio-range {
+				#pinctrl-single,gpio-range-cells = <3>;
+			};
+		};
+
+                pmu: power-management@0 {
+			compatible = "spacemit,k3-pm-domain";
+			reg = <0x0 0xd4282800 0x0 0x400>;
+			#power-domain-cells = <1>;
+                };
+
+		uart0: uart@d4017000 {
+			u-boot,dm-spl;
+			compatible = "ns16550";
+			reg = <0x00000000 0xD4017000 0x00000000 0x00000100>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			clock-frequency = <14745600>;
+		};
+
+		rcpu@0 {
+			compatible = "spacemit,k3-rproc";
+			u-boot,dm-spl;
+			reg = <0 0 0 0>;
+			remoteproc-name = "rcpu0";
+			coreid = <0>;
+			mem_heap_start = <0x1 0x500000>;
+			mem_heap_size = <0x200000>;
+			fw_boot_entry = <0x1 0x200000>;
+			status = "disabled";
+		};
+
+		rcpu@1 {
+			compatible = "spacemit,k3-rproc";
+			u-boot,dm-spl;
+			reg = <0 0 0 0>;
+			remoteproc-name = "rcpu1";
+			coreid = <1>;
+			mem_heap_start = <0x1 0xB00000>;
+			mem_heap_size = <0x200000>;
+			fw_boot_entry = <0x1 0x800000>;
+			status = "disabled";
+		};
+
+		rpmi_shmem_mbox: rpmi-shmem-mbox@cac90c00 {
+			compatible = "riscv,rpmi-shmem-mbox";
+			reg = <0x1 0x00e00000 0x0 0x1000>,
+				<0x1 0x00e01000 0x0 0x1000>,
+				<0x1 0x00e02000 0x0 0x1000>,
+				<0x1 0x00e03000 0x0 0x1000>,
+				<0x0 0xcac90c00 0x0 0x100>;
+			reg-names = "a2p-req", "p2a-ack", "p2a-req", "a2p-ack", "db-reg";
+			riscv,slot-size = <256>;
+			#mbox-cells = <1>;
+			status = "okay";
+		};
+
+		rpmi_mpxy_clk: rpmi-mpxy-clk@0 {
+			compatible = "riscv,rpmi-mpxy-clock";
+			mboxes = <&rpmi_shmem_mbox 8>;
+			riscv,sbi-mpxy-channel-id = <8>;
+			status = "okay";
+		};
+
+		rpmi_mpxy_voltage: rpmi-mpxy-voltage@0 {
+			compatible = "riscv,rpmi-mpxy-voltage";
+			mboxes = <&rpmi_shmem_mbox 7>;
+			riscv,sbi-mpxy-channel-id = <7>;
+			status = "okay";
+		};
+
+		rpmi_system_suspend: rpmi-system-suspend@0 {
+			compatible = "riscv,rpmi-system-suspend";
+			mboxes = <&rpmi_shmem_mbox 4>;
+			riscv,sbi-mpxy-channel-id = <4>;
+			status = "okay";
+		};
+
+		rpmi_mpxy_hsm: rpmi-mpxy-hsm@0 {
+			compatible = "riscv,rpmi-hsm";
+			mboxes = <&rpmi_shmem_mbox 5>;
+			riscv,sbi-mpxy-channel-id = <5>;
+			status = "okay";
+		};
+
+		rpmi_mpxy_domain: rpmi-mpxy-domain@0 {
+			compatible = "riscv,rpmi-mpxy-domain";
+			mboxes = <&rpmi_shmem_mbox 9>;
+			riscv,sbi-mpxy-channel-id = <9>;
+			status = "okay";
+		};
+
+		rpmi_mpxy_rtc: rpmi-mpxy-rtc@0 {
+			compatible = "riscv,rpmi-mpxy-rtc";
+			mboxes = <&rpmi_shmem_mbox 14>;
+			riscv,sbi-mpxy-channel-id = <14>;
+			status = "okay";
+		};
+
+		rpmi_mpxy_pwrkey: rpmi-mpxy-pwrkey@0 {
+			compatible = "riscv,rpmi-mpxy-pwrkey";
+			mboxes = <&rpmi_shmem_mbox 15>;
+			riscv,sbi-mpxy-channel-id = <15>;
+			status = "okay";
+		};
+
+		rpmi_mpxy_sysreset: rpmi-mpxy-sysreset@0 {
+			compatible = "riscv,rpmi-system-reset";
+			mboxes = <&rpmi_shmem_mbox 3>;
+			riscv,sbi-mpxy-channel-id = <3>;
+			status = "okay";
+		};
+
+		ddr@3000000 {
+			u-boot,dm-spl;
+			compatible = "spacemit,snps-lp45";
+			reg = <0x00000000 0xc0000000 0x00000000 0x00400000>;
+			status = "okay";
+		};
+
+		eth0: ethernet@cac80000 {
+			compatible = "spacemit,k3-dwmac-eqos";
+			reg = <0x00000000 0xcac80000 0x00000000 0x00002000>;
+			apmu-base-reg = <0xd4282800>;
+			ctrl-reg = <0x3e4>;
+			dline-reg = <0x3e8>;
+			clocks = <&ccu CLK_EMAC0_BUS>;
+			clock-names = "master_bus_clk";
+			resets = <&reset RESET_EMAC0>;
+			reset-names = "mac_reset";
+			status = "disabled";
+		};
+
+		eth1: ethernet@cac82000 {
+			compatible = "spacemit,k3-dwmac-eqos";
+			reg = <0x00000000 0xcac82000 0x00000000 0x00002000>;
+			apmu-base-reg = <0xd4282800>;
+			ctrl-reg = <0x3ec>;
+			dline-reg = <0x3f0>;
+			clocks = <&ccu CLK_EMAC1_BUS>;
+			clock-names = "master_bus_clk";
+			resets = <&reset RESET_EMAC1>;
+			reset-names = "mac_reset";
+			status = "disabled";
+		};
+
+		eth2: ethernet@cac8e000 {
+			compatible = "spacemit,k3-dwmac-eqos";
+			reg = <0x00000000 0xcac8e000 0x00000000 0x00002000>;
+			apmu-base-reg = <0xd4282800>;
+			ctrl-reg = <0x248>;
+			dline-reg = <0x24c>;
+			clocks = <&ccu CLK_EMAC2_BUS>;
+			clock-names = "master_bus_clk";
+			resets = <&reset RESET_EMAC2>;
+			reset-names = "mac_reset";
+			status = "disabled";
+		};
+
+		qspi: spi@d420c000 {
+			compatible = "spacemit,k3-qspi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0 0xd420c000 0x0 0x1000>,
+			      <0x0 0xb8000000 0x0 0x4100000>;
+			reg-names = "qspi-base", "qspi-mmap";
+			qspi-sfa1ad = <0x800000>;
+			qspi-sfa2ad = <0x1000000>;
+			qspi-sfb1ad = <0x1800000>;
+			qspi-sfb2ad = <0x2000000>;
+			qspi-pmuap-reg = <0xd4282860>;
+			qspi-mpmu-acgr-reg = <0xd4051024>;
+			qspi-ahbread = <1>;
+			qspi-freq = <26500000>;
+			qspi-id = <4>;
+			clocks = <&ccu CLK_QSPI>,
+			          <&ccu CLK_QSPI_BUS>;
+			clock-names = "qspi_clk", "qspi_bus_clk";
+			resets = <&reset RESET_QSPI>,
+				<&reset RESET_QSPI_BUS>;
+			reset-names = "qspi_reset", "qspi_bus_reset";
+			status = "disabled";
+		};
+
+		spi0: spi0@d4040000 {
+			compatible = "spacemit,k3-spi";
+			reg = <0x0 0xd4040000 0x0 0x30>;
+			clocks = <&ccu CLK_SPI0>;
+			resets = <&reset RESET_SPI0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clock-frequency = <5000000>;
+			port = <0>;
+			status = "disabled";
+		};
+
+		spi1: spi1@d4040800 {
+			compatible = "spacemit,k3-spi";
+			reg = <0x0 0xd4040800 0x0 0x30>;
+			clocks = <&ccu CLK_SPI1>;
+			resets = <&reset RESET_SPI1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clock-frequency = <5000000>;
+			port = <1>;
+			status = "disabled";
+		};
+
+		spi3: spi3@d401c000 {
+			compatible = "spacemit,k3-spi";
+			reg = <0x0 0xd401c000 0x0 0x30>;
+			clocks = <&ccu CLK_SPI3>;
+			resets = <&reset RESET_SPI3>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clock-frequency = <5000000>;
+			port = <3>;
+			status = "disabled";
+		};
+
+		pwm18: pwm@d4022800 {
+			compatible = "spacemit,k1x-pwm";
+			reg = <0x0 0xd4022800 0x0 0x10>;
+			#pwm-cells = <2>;
+			clocks = <&ccu CLK_PWM18>;
+			resets = <&reset RESET_PWM18>;
+			k1x,pwm-disable-fd;
+			status = "disabled";
+		};
+
+		backlight: backlight {
+			compatible = "pwm-backlight";
+			brightness-levels = <0 4 8 16 32 64 100 128 255>;
+			status = "disabled";
+		};
+
+		pcie_phy0: pcie-phy0@81d00000 {
+			compatible = "spacemit,k3-pcie-phy";
+			reg = <0x0 0x81d00000 0x0 0x1000>,
+			      <0x0 0xd4090178 0x0 0x8>;
+			reg-names = "phy", "apb_spare";
+
+			spacemit,phy-id = <0>;
+			spacemit,num-lanes = <2>;
+			#phy-cells = <0>;
+			status = "disabled";
+		};
+
+		pcie_phy1: pcie-phy1@81e00000 {
+			compatible = "spacemit,k3-pcie-phy";
+			reg = <0x0 0x81e00000 0x0 0x1000>,
+			      <0x0 0xd4090178 0x0 0x8>;
+			reg-names = "phy", "apb_spare";
+
+			spacemit,phy-id = <1>;
+			spacemit,num-lanes = <2>;
+			#phy-cells = <0>;
+			status = "disabled";
+		};
+
+		pcie_phy2: pcie-phy2@81f00000 {
+			compatible = "spacemit,k3-pcie-phy";
+			reg = <0x0 0x81f00000 0x0 0x400>,
+			      <0x0 0xd4090178 0x0 0x8>;
+			reg-names = "phy", "apb_spare";
+
+			spacemit,phy-id = <2>;
+			spacemit,num-lanes = <1>;
+			#phy-cells = <0>;
+			status = "disabled";
+		};
+
+		pcie_phy3: pcie-phy3@82000000 {
+			compatible = "spacemit,k3-pcie-phy";
+			reg = <0x0 0x82000000 0x0 0x400>,
+			      <0x0 0xd4090178 0x0 0x8>;
+			reg-names = "phy", "apb_spare";
+
+			spacemit,phy-id = <3>;
+			spacemit,num-lanes = <1>;
+			#phy-cells = <0>;
+			status = "disabled";
+		};
+
+		pcie_phy4: pcie-phy4@82100000 {
+			compatible = "spacemit,k3-pcie-phy";
+			reg = <0x0 0x82100000 0x0 0x400>,
+			      <0x0 0xd4090178 0x0 0x8>;
+			reg-names = "phy", "apb_spare";
+
+			spacemit,phy-id = <4>;
+			spacemit,num-lanes = <1>;
+			#phy-cells = <0>;
+			status = "disabled";
+		};
+
+		pcie_phy5: pcie-phy5@82200000 {
+			compatible = "spacemit,k3-pcie-phy";
+			reg = <0x0 0x82200000 0x0 0x400>,
+			      <0x0 0xd4090178 0x0 0x8>;
+			reg-names = "phy", "apb_spare";
+
+			spacemit,phy-id = <5>;
+			spacemit,num-lanes = <1>;
+			#phy-cells = <0>;
+			status = "disabled";
+		};
+
+		pcie0_rc: pcie@80000000 {
+			compatible = "spacemit,k3-pcie";
+			reg = <0x0 0x80000000 0x0 0x00001000>, /* dbi */
+			      <0x0 0x80100000 0x0 0x00001000>, /* dbi2 */
+			      <0x0 0x80300000 0x0 0x00003f20>, /* atu registers */
+			      <0x11 0x00000000 0x0 0x00010000>, /* config space */
+			      <0x0 0xd42829f0 0x0 0x00000008>, /* k3 soc config addr */
+			      <0x0 0x82900000 0x0 0x00001000>; /* phy ahb */
+			reg-names = "dbi", "dbi2", "atu", "config", "app", "phy_ahb";
+
+			spacemit,pcie-mgmt = <0xd42829d8>;
+			clocks = <&ccu CLK_PCIEA>;
+			resets = <&reset RESET_PCIE_PORTA>;
+			reset-names = "pcie-reset";
+
+			spacemit,pcie-port = <0>;
+			bus-range = <0x00 0xff>;
+			max-link-speed = <3>;
+			num-lanes = <8>;
+
+			device_type = "pci";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges = <0x01000000 0x0 0x00010000 0x11 0x00010000 0x0 0x00100000>,
+				 <0x02000000 0x0 0x00110000 0x11 0x00110000 0x0 0x7fef0000>,
+				 <0x43000000 0x18 0x00000000 0x18 0x00000000 0x1 0x00000000>;
+			linux,pci-domain = <0>;
+			status = "disabled";
+		};
+
+		pcie1_rc: pcie@80400000 {
+			compatible = "spacemit,k3-pcie";
+			reg = <0x0 0x80400000 0x0 0x00001000>, /* dbi */
+			      <0x0 0x80500000 0x0 0x00001000>, /* dbi2 */
+			      <0x0 0x80700000 0x0 0x00003f20>, /* atu registers */
+			      <0x11 0x80000000 0x0 0x00010000>, /* config space */
+			      <0x0 0xd42829d0 0x0 0x00000008>, /* k3 soc config addr */
+			      <0x0 0x82c00000 0x0 0x00001000>; /* phy ahb */
+			reg-names = "dbi", "dbi2", "atu", "config", "app", "phy_ahb";
+
+			spacemit,pcie-mgmt = <0xd42829d8>;
+			clocks = <&ccu CLK_PCIEB>;
+			resets = <&reset RESET_PCIE_PORTB>;
+			reset-names = "pcie-reset";
+
+			spacemit,pcie-port = <1>;
+			bus-range = <0x00 0xff>;
+			max-link-speed = <3>;
+			num-lanes = <2>;
+
+			device_type = "pci";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges = <0x01000000 0x0 0x00010000 0x11 0x80010000 0x0 0x00100000>,
+				 <0x02000000 0x0 0x80110000 0x11 0x80110000 0x0 0x7fef0000>,
+				 <0x43000000 0x16 0x00000000 0x16 0x00000000 0x1 0x00000000>;
+			linux,pci-domain = <1>;
+			status = "disabled";
+		};
+
+		pcie2_rc: pcie@80800000 {
+			compatible = "spacemit,k3-pcie";
+			reg = <0x0 0x80800000 0x0 0x00001000>, /* dbi */
+			      <0x0 0x80900000 0x0 0x00001000>, /* dbi2 */
+			      <0x0 0x80b00000 0x0 0x00003f20>, /* atu registers */
+			      <0x12 0x00000000 0x0 0x00010000>, /* config space */
+			      <0x0 0xd42829c8 0x0 0x00000008>, /* k3 soc config addr */
+			      <0x0 0x82d00000 0x0 0x00001000>; /* phy ahb */
+			reg-names = "dbi", "dbi2", "atu", "config", "app", "phy_ahb";
+
+			spacemit,pcie-mgmt = <0xd42829d8>;
+			clocks = <&ccu CLK_PCIEC>;
+			resets = <&reset RESET_PCIE_PORTC>;
+			reset-names = "pcie-reset";
+
+			spacemit,pcie-port = <2>;
+			bus-range = <0x00 0xff>;
+			max-link-speed = <3>;
+			num-lanes = <2>;
+
+			device_type = "pci";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges = <0x01000000 0x0 0x00000000 0x12 0x00010000 0x0 0x00100000>,
+				 <0x02000000 0x0 0x00110000 0x12 0x00110000 0x0 0x7fef0000>,
+				 <0x43000000 0x15 0x00000000 0x15 0x00000000 0x1 0x00000000>;
+			linux,pci-domain = <2>;
+			status = "disabled";
+		};
+
+
+		pcie3_rc: pcie@80c00000 {
+			compatible = "spacemit,k3-pcie";
+			reg = <0x0 0x80c00000 0x0 0x00001000>, /* dbi */
+			      <0x0 0x80d00000 0x0 0x00001000>, /* dbi2 */
+			      <0x0 0x80f00000 0x0 0x00003f20>, /* atu registers */
+			      <0x12 0x80000000 0x0 0x00010000>, /* config space */
+			      <0x0 0xd42829e0 0x0 0x00000008>, /* k3 soc config addr */
+			      <0x0 0x82a00000 0x0 0x00001000>; /* phy ahb */
+			reg-names = "dbi", "dbi2", "atu", "config", "app", "phy_ahb";
+
+			spacemit,pcie-mgmt = <0xd42829d8>;
+			clocks = <&ccu CLK_PCIED>;
+			resets = <&reset RESET_PCIE_PORTD>;
+			reset-names = "pcie-reset";
+
+			spacemit,pcie-port = <3>;
+			bus-range = <0x00 0xff>;
+			max-link-speed = <3>;
+			num-lanes = <1>;
+
+			device_type = "pci";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges = <0x01000000 0x0 0x00010000 0x12 0x80010000 0x0 0x100000>,
+				 <0x02000000 0x0 0x80110000 0x12 0x80110000 0x0 0x3fef0000>,
+				 <0x43000000 0x14 0x00000000 0x14 0x00000000 0x1 0x00000000>;
+			linux,pci-domain = <3>;
+			status = "disabled";
+		};
+
+		pcie4_rc: pcie@81000000 {
+			compatible = "spacemit,k3-pcie";
+			reg = <0x0 0x81000000 0x0 0x00001000>, /* dbi */
+			      <0x0 0x81100000 0x0 0x00001000>, /* dbi2 */
+			      <0x0 0x81300000 0x0 0x00003f20>, /* atu registers */
+			      <0x12 0xc0000000 0x0 0x00010000>, /* config space */
+			      <0x0 0xd42829e8 0x0 0x00000008>, /* k3 soc config addr */
+			      <0x0 0x82b00000 0x0 0x00001000>; /* phy ahb */
+			reg-names = "dbi", "dbi2", "atu", "config", "app", "phy_ahb";
+
+			spacemit,pcie-mgmt = <0xd42829d8>;
+			clocks = <&ccu CLK_PCIEE>;
+			resets = <&reset RESET_PCIE_PORTE>;
+			reset-names = "pcie-reset";
+
+			spacemit,pcie-port = <4>;
+			bus-range = <0x00 0xff>;
+			max-link-speed = <3>;
+			num-lanes = <1>;
+
+			device_type = "pci";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges = <0x01000000 0x0 0x00000000 0x12 0xc0010000 0x0 0x00100000>,
+				 <0x02000000 0x0  0xc0110000 0x12 0xc0110000 0x0 0x3fef0000>,
+				 <0x43000000 0x13 0x00000000 0x13 0x00000000 0x1 0x00000000>;
+			linux,pci-domain = <4>;
+			status = "disabled";
+		};
+
+		sdhci0: sdh@d4280000 {
+			compatible = "spacemit,k3-sdhci";
+			reg = <0x0 0xd4280000 0x0 0x200>;
+			resets = <&reset RESET_SDH_AXI>,
+				 <&reset RESET_SDH0>;
+			reset-names = "sdh_axi", "sdh0";
+			clocks = <&ccu CLK_SDH0>,
+				 <&ccu CLK_SDH_AXI>;
+			clock-names = "sdh-io", "sdh-core";
+			status = "disabled";
+		};
+
+		sdhci1: sdh@d4280800 {
+			compatible = "spacemit,k3-sdhci";
+			reg = <0x0 0xd4280800 0x0 0x200>;
+			resets = <&reset RESET_SDH_AXI>,
+				 <&reset RESET_SDH1>;
+			reset-names = "sdh_axi", "sdh1";
+			clocks = <&ccu CLK_SDH1>,
+				 <&ccu CLK_SDH_AXI>;
+			clock-names = "sdh-io", "sdh-core";
+			status = "disabled";
+		};
+
+		sdhci2: sdh@d4281000 {
+			compatible = "spacemit,k3-sdhci";
+			reg = <0x0 0xd4281000 0x0 0x200>;
+			resets = <&reset RESET_SDH_AXI>,
+				 <&reset RESET_SDH2>;
+			reset-names = "sdh_axi", "sdh2";
+			clocks = <&ccu CLK_SDH2>,
+				 <&ccu CLK_SDH_AXI>;
+			clock-names = "sdh-io", "sdh-core";
+			status = "disabled";
+		};
+
+		usb2_host_u2phy: phy@c0a20000 {
+			compatible = "spacemit,usb2-phy";
+			reg = <0x0 0xc0a20000 0x0 0x200>;
+			#phy-cells = <0>;
+			status = "disabled";
+		};
+
+		usb2_host: usb2@0 {
+			compatible = "spacemit,k3-dwc3";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			resets = <&reset RESET_USB2>;
+			reset-names = "ctl_rst";
+			clocks = <&ccu CLK_USB2_BUS>;
+			clock-names = "bus";
+			ranges;
+			status = "disabled";
+			dwc3@c0a00000 {
+				compatible = "snps,dwc3";
+				reg = <0x0 0xc0a00000 0x0 0x10000>;
+				phys = <&usb2_host_u2phy>;
+				phy-names = "usb2-phy";
+				dr_mode = "host";
+				maximum-speed = "high-speed";
+				snps,dis_enblslpm_quirk;
+				snps,dis_u2_susphy_quirk;
+				snps,dis-del-phy-power-chg-quirk;
+				snps,dis-tx-ipgap-linecheck-quirk;
+				phy_type = "utmi";
+			};
+		};
+
+		usb3_porta_u2phy: phy@cad20000 {
+			compatible = "spacemit,usb2-phy";
+			reg = <0x0 0xcad20000 0x0 0x200>;
+			#phy-cells = <0>;
+			status = "disabled";
+		};
+
+		usb3_porta_u3phy: phy@0cad30000{
+			compatible = "spacemit,k3-usb3-phy",
+				     "spacemit,k3-typec-switch";
+			reg = <0x0 0xcad30000 0x0 0x200>,
+			      <0x0 0xcad40000 0x0 0x200>,
+			      <0x0 0xd4282800 0x0 0x114>,
+			      <0x0 0xd4090000 0x0 0x200>;
+			reg-names = "puphy",
+				    "puphy1",
+				    "spacemit,syscon-apmu",
+				    "spacemit,syscon-apb-spare";
+			phy-nums = <2>;
+			#phy-cells = <0>;
+			status = "disabled";
+		};
+
+		usb3_porta: usb3@0 {
+			compatible = "spacemit,k3-dwc3";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			resets = <&reset RESET_USB3_PORTA>;
+			reset-names = "ctl_rst";
+			clocks = <&ccu CLK_USB3_PORTA_BUS>;
+			clock-names = "bus";
+			ranges;
+			status = "disabled";
+			dwc3@cad00000 {
+				compatible = "snps,dwc3";
+				reg = <0x0 0xcad00000 0x0 0x10000>;
+				phys = <&usb3_porta_u3phy>, <&usb3_porta_u2phy>;
+				phy-names = "usb3-phy", "usb2-phy";
+				phy_type = "utmi";
+				snps,dis_enblslpm_quirk;
+				snps,dis_u2_susphy_quirk;
+				snps,dis_u3_susphy_quirk;
+				snps,del_phy_power_chg_quirk;
+				snps,dis-tx-ipgap-linecheck-quirk;
+				snps,parkmode-disable-ss-quirk;
+			};
+		};
+
+		usb3_portb_u2phy: phy@81500000 {
+			compatible = "spacemit,usb2-phy";
+			reg = <0x0 0x81500000 0x0 0x200>;
+			#phy-cells = <0>;
+			status = "disabled";
+		};
+
+		usb3_portb_u3phy: phy@81f00000{
+			compatible = "spacemit,k3-usb3-phy";
+			reg = <0x0 0x81f00000 0x0 0x200>,
+			      <0x0 0xd4282800 0x0 0x114>,
+			      <0x0 0xd4090000 0x0 0x200>;
+			reg-names = "puphy",
+				    "spacemit,syscon-apmu",
+				    "spacemit,syscon-apb-spare";
+			combo-usb-bit = <2>;
+			phy-nums = <1>;
+			#phy-cells = <0>;
+			status = "disabled";
+		};
+
+		usb3_portb: usb3@1 {
+			compatible = "spacemit,k3-dwc3";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			resets = <&reset RESET_USB3_PORTB>;
+			reset-names = "ctl_rst";
+			clocks = <&ccu CLK_USB3_PORTB_BUS>;
+			clock-names = "bus";
+			ranges;
+			status = "disabled";
+			dwc3@81400000 {
+				compatible = "snps,dwc3";
+				reg = <0x0 0x81400000 0x0 0x10000>;
+				dr_mode = "host";
+				phys = <&usb3_portb_u3phy>, <&usb3_portb_u2phy>;
+				phy-names = "usb3-phy", "usb2-phy";
+				phy_type = "utmi";
+				snps,dis_enblslpm_quirk;
+				snps,dis_u2_susphy_quirk;
+				snps,dis_u3_susphy_quirk;
+				snps,del_phy_power_chg_quirk;
+				snps,dis-tx-ipgap-linecheck-quirk;
+				snps,parkmode-disable-ss-quirk;
+			};
+		};
+
+		usb3_portc_u2phy: phy@81800000 {
+			compatible = "spacemit,usb2-phy";
+			reg = <0x0 0x81800000 0x0 0x200>;
+			#phy-cells = <0>;
+			status = "disabled";
+		};
+
+		usb3_portc_u3phy: phy@82000000{
+			compatible = "spacemit,k3-usb3-phy";
+			reg = <0x0 0x82000000 0x0 0x200>,
+			      <0x0 0xd4282800 0x0 0x114>,
+			      <0x0 0xd4090000 0x0 0x200>;
+			reg-names = "puphy",
+				    "spacemit,syscon-apmu",
+				    "spacemit,syscon-apb-spare";
+			phy-nums = <1>;
+			combo-usb-bit = <1>;
+			#phy-cells = <0>;
+			status = "disabled";
+		};
+
+		usb3_portc: usb3@2 {
+			compatible = "spacemit,k3-dwc3";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			resets = <&reset RESET_USB3_PORTC>;
+			reset-names = "ctl_rst";
+			clocks = <&ccu CLK_USB3_PORTC_BUS>;
+			clock-names = "bus";
+			ranges;
+			status = "disabled";
+			dwc3@81700000 {
+				compatible = "snps,dwc3";
+				reg = <0x0 0x81700000 0x0 0x10000>;
+				dr_mode = "host";
+				phys = <&usb3_portc_u3phy>, <&usb3_portc_u2phy>;
+				phy-names = "usb3-phy", "usb2-phy";
+				phy_type = "utmi";
+				snps,dis_enblslpm_quirk;
+				snps,dis_u2_susphy_quirk;
+				snps,dis_u3_susphy_quirk;
+				snps,del_phy_power_chg_quirk;
+				snps,dis-tx-ipgap-linecheck-quirk;
+				snps,parkmode-disable-ss-quirk;
+			};
+		};
+
+		usb3_portd_u2phy: phy@81b00000 {
+			compatible = "spacemit,usb2-phy";
+			reg = <0x0 0x81b00000 0x0 0x200>;
+			#phy-cells = <0>;
+			status = "disabled";
+		};
+
+		usb3_portd_u3phy: phy@82100000{
+			compatible = "spacemit,k3-usb3-phy";
+			reg = <0x0 0x82100000 0x0 0x200>,
+			      <0x0 0xd4282800 0x0 0x114>,
+			      <0x0 0xd4090000 0x0 0x200>;
+			reg-names = "puphy",
+				    "spacemit,syscon-apmu",
+				    "spacemit,syscon-apb-spare";
+			combo-usb-bit = <0>;
+			phy-nums = <1>;
+			#phy-cells = <0>;
+			status = "disabled";
+		};
+
+		usb3_portd: usb3@3 {
+			compatible = "spacemit,k3-dwc3";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			resets = <&reset RESET_USB3_PORTD>;
+			reset-names = "ctl_rst";
+			clocks = <&ccu CLK_USB3_PORTD_BUS>;
+			clock-names = "bus";
+			ranges;
+			status = "disabled";
+			dwc3@81a00000 {
+				compatible = "snps,dwc3";
+				reg = <0x0 0x81a00000 0x0 0x10000>;
+				dr_mode = "host";
+				phys = <&usb3_portd_u3phy>, <&usb3_portd_u2phy>;
+				phy-names = "usb3-phy", "usb2-phy";
+				phy_type = "utmi";
+				snps,dis_enblslpm_quirk;
+				snps,dis_u2_susphy_quirk;
+				snps,dis_u3_susphy_quirk;
+				snps,del_phy_power_chg_quirk;
+				snps,dis-tx-ipgap-linecheck-quirk;
+				snps,parkmode-disable-ss-quirk;
+			};
+		};
+
+		efuse: fuse@f0702800 {
+			compatible = "spacemit,k3-efuse";
+			reg = <0x0 0xf0702800 0x0 0x400>;
+			resets = <&reset RESET_AES_WTM>;
+			reset-names = "aes_reset";
+			clocks = <&ccu CLK_AES_WTM>;
+			clock-names = "aes_core_wtm";
+			status = "disabled";
+		};
+
+		dpu: dpu@c0340000 {
+			compatible = "spacemit,dpu";
+			reg = <0x0 0xc0340000 0x0 0x54000>,
+				  <0x0 0xc0440000 0x0 0x54000>;
+			reg-names = "crtc0", "crtc1";
+			status = "disabled";
+
+			dpu_out: port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				dpu_out_dsi: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&dsi_in_dpu>;
+				};
+
+			};
+		};
+
+		dp0: dp0@cac84000 {
+			compatible = "spacemit,inno-dp";
+			reg = <0x0 0xcac84000 0x0 0x4000>;
+			reg-names = "base";
+			dpu-id = <0>;
+			dp-id = <0>;
+			clocks = <&ccu CLK_LCD_PXCLK>,
+					 <&ccu CLK_LCD_MCLK>,
+					 <&ccu CLK_LCD_HCLK>,
+					 <&ccu CLK_DSI_ESC>,
+					 <&ccu CLK_DPU_ACLK>,
+					 <&ccu CLK_LCD_DSC>,
+					 <&ccu CLK_EDP0_PXCLK>;
+			clock-names = "pxclk", "mclk", "hclk", "escclk", "aclk", "dscclk", "dppxclk";
+			resets = <&reset RESET_LCD_MCLK>,
+					 <&reset RESET_LCD>,
+					 <&reset RESET_DSI_ESC>,
+					 <&reset RESET_DPU_ACLK>,
+					 <&reset RESET_LCD_DSCCLK>,
+					 <&reset RESET_EDP0>;
+			reset-names= "mclk_reset", "lcd_reset", "esc_reset", "aclk_reset", "dscclk_reset", "dp_reset";
+			power-domains = <&pmu K3_PMU_LCD0_PWR_DOMAIN>;
+			status = "disabled";
+		};
+
+		edp0: edp0@cac84000 {
+			compatible = "spacemit,inno-edp";
+			reg = <0x0 0xcac84000 0x0 0x4000>;
+			reg-names = "base";
+			dpu-id = <0>;
+			edp-id = <0>;
+			clocks = <&ccu CLK_LCD_PXCLK>,
+					 <&ccu CLK_LCD_MCLK>,
+					 <&ccu CLK_LCD_HCLK>,
+					 <&ccu CLK_DSI_ESC>,
+					 <&ccu CLK_DPU_ACLK>,
+					 <&ccu CLK_LCD_DSC>,
+					 <&ccu CLK_EDP0_PXCLK>;
+			clock-names = "pxclk", "mclk", "hclk", "escclk", "aclk", "dscclk", "dppxclk";
+			resets = <&reset RESET_LCD_MCLK>,
+					 <&reset RESET_LCD>,
+					 <&reset RESET_DSI_ESC>,
+					 <&reset RESET_DPU_ACLK>,
+					 <&reset RESET_LCD_DSCCLK>,
+					 <&reset RESET_EDP0>;
+			reset-names= "mclk_reset", "lcd_reset", "esc_reset", "aclk_reset", "dscclk_reset", "dp_reset";
+			power-domains = <&pmu K3_PMU_LCD0_PWR_DOMAIN>;
+			status = "disabled";
+		};
+
+		dp1: dp1@cac88000 {
+			compatible = "spacemit,inno-dp";
+			reg = <0x0 0xcac88000 0x0 0x4000>;
+			reg-names = "base";
+			dpu-id = <1>;
+			dp-id = <1>;
+			clocks = <&ccu CLK_DSI4LN2_LCD_PXCLK>,
+					 <&ccu CLK_DSI4LN2_LCD_MCLK>,
+					 <&ccu CLK_DSI4LN2_DSI_ESC>,
+					 <&ccu CLK_DSI4LN2_DPU_ACLK>,
+					 <&ccu CLK_DSI4LN2_LCD_DSC>,
+					 <&ccu CLK_EDP1_PXCLK>;
+			clock-names = "pxclk", "mclk", "escclk", "aclk", "dscclk", "dppxclk";
+			resets = <&reset RESET_DSI4LN2_LCD_MCLK>,
+					 <&reset RESET_DSI4LN2_LCD_SW>,
+					 <&reset RESET_DSI4LN2_ESCCLK>,
+					 <&reset RESET_DSI4LN2_DPU_ACLK>,
+					 <&reset RESET_DSI4LN2_LCD_DSCCLK>,
+					 <&reset RESET_EDP1>;
+			reset-names= "mclk_reset", "lcd_reset", "esc_reset", "aclk_reset", "dscclk_reset", "dp_reset";
+			power-domains = <&pmu K3_PMU_LCD1_PWR_DOMAIN>;
+			status = "disabled";
+
+		};
+
+		edp1: edp1@cac88000 {
+			compatible = "spacemit,inno-edp";
+			reg = <0x0 0xcac88000 0x0 0x4000>;
+			reg-names = "base";
+			dpu-id = <1>;
+			edp-id = <1>;
+			clocks = <&ccu CLK_DSI4LN2_LCD_PXCLK>,
+					 <&ccu CLK_DSI4LN2_LCD_MCLK>,
+					 <&ccu CLK_DSI4LN2_DSI_ESC>,
+					 <&ccu CLK_DSI4LN2_DPU_ACLK>,
+					 <&ccu CLK_DSI4LN2_LCD_DSC>,
+					 <&ccu CLK_EDP1_PXCLK>;
+			clock-names = "pxclk", "mclk", "escclk", "aclk", "dscclk", "dppxclk";
+			resets = <&reset RESET_DSI4LN2_LCD_MCLK>,
+					 <&reset RESET_DSI4LN2_LCD_SW>,
+					 <&reset RESET_DSI4LN2_ESCCLK>,
+					 <&reset RESET_DSI4LN2_DPU_ACLK>,
+					 <&reset RESET_DSI4LN2_LCD_DSCCLK>,
+					 <&reset RESET_EDP1>;
+			reset-names= "mclk_reset", "lcd_reset", "esc_reset", "aclk_reset", "dscclk_reset", "dp_reset";
+			power-domains = <&pmu K3_PMU_LCD1_PWR_DOMAIN>;
+			status = "disabled";
+
+		};
+
+		mipi_dsi: mipi@d421a800 {
+			compatible = "spacemit,mipi-dsi";
+			reg = <0x0 0xd421a800 0 0x200>;
+			reg-names = "dsi";
+			dpu-id = <0>;
+			clocks = <&ccu CLK_LCD_PXCLK>,
+				<&ccu CLK_LCD_MCLK>,
+				<&ccu CLK_LCD_HCLK>,
+				<&ccu CLK_DSI_ESC>,
+				<&ccu CLK_LCD_DSC>,
+				<&ccu CLK_DPU_ACLK>;
+			clock-names = "pxclk", "mclk", "hclk", "escclk", "dscclk", "aclk";
+			resets = <&reset RESET_DPU_ACLK>,
+				<&reset RESET_LCD_DSCCLK>,
+				<&reset RESET_LCD_MCLK>,
+				<&reset RESET_DSI_ESC>,
+				<&reset RESET_LCD>;
+			reset-names= "aclk_reset", "dsc_reset", "mclk_reset", "esc_reset", "lcd_reset";
+			power-domains = <&pmu K3_PMU_LCD0_PWR_DOMAIN>;
+
+			status = "disabled";
+
+			ports {
+				mipi_in: port {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					dsi_in_dpu: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&dpu_out_dsi>;
+					};
+				};
+			};
+		};
+
+		panel: panel {
+			  compatible = "spacemit,panel";
+			  status = "disabled";
+		};
+
+		i2c0: twsi0@d4010800 {
+			compatible = "spacemit,i2c";
+			reg = <0x0 0xd4010800 0x0 0x38>;
+			clocks = <&ccu CLK_TWSI0>;
+			resets = <&reset RESET_TWSI0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clock-frequency = <100000>;
+			status = "disabled";
+		};
+
+		i2c1: twsi1@d4011000 {
+			compatible = "spacemit,i2c";
+			reg = <0x0 0xd4011000 0x0 0x38>;
+			clocks = <&ccu CLK_TWSI1>;
+			resets = <&reset RESET_TWSI1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clock-frequency = <100000>;
+			status = "disabled";
+		};
+
+		i2c2: twsi2@d4012000 {
+			compatible = "spacemit,i2c";
+			reg = <0x0 0xd4012000 0x0 0x38>;
+			clocks = <&ccu CLK_TWSI2>;
+			resets = <&reset RESET_TWSI2>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clock-frequency = <100000>;
+			status = "disabled";
+		};
+
+		i2c3: twsi3@f0614000 {
+			compatible = "spacemit,i2c";
+			reg = <0x0 0xf0614000 0x0 0x38>;
+			clocks = <&ccu CLK_SEC_TWSI3>;
+			resets = <&reset RESET_SEC_TWSI3>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clock-frequency = <100000>;
+			status = "disabled";
+		};
+
+		i2c4: twsi4@d4012800 {
+			compatible = "spacemit,i2c";
+			reg = <0x0 0xd4012800 0x0 0x38>;
+			clocks = <&ccu CLK_TWSI4>;
+			resets = <&reset RESET_TWSI4>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clock-frequency = <100000>;
+			status = "disabled";
+		};
+
+		i2c5: twsi5@d4013800 {
+			compatible = "spacemit,i2c";
+			reg = <0x0 0xd4013800 0x0 0x38>;
+			clocks = <&ccu CLK_TWSI5>;
+			resets = <&reset RESET_TWSI5>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clock-frequency = <100000>;
+			status = "disabled";
+		};
+
+		i2c6: twsi6@d4018800 {
+			compatible = "spacemit,i2c";
+			reg = <0x0 0xd4018800 0x0 0x38>;
+			clocks = <&ccu CLK_TWSI6>;
+			resets = <&reset RESET_TWSI6>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clock-frequency = <100000>;
+			status = "disabled";
+		};
+
+		i2c8: twsi8@d401d800 {
+			compatible = "spacemit,i2c";
+			reg = <0x0 0xd401d800 0x0 0x38>;
+			clocks = <&ccu CLK_TWSI8>;
+			resets = <&reset RESET_TWSI8>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clock-frequency = <100000>;
+			status = "disabled";
+		};
+
+		espi0: espi@cac8c000 {
+			u-boot,dm-spl;
+			compatible = "spacemit,k2-espi";
+			reg = <0x0 0xcac8c000 0x0 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_espi0>;
+			clocks = <&ccu CLK_ESPI_SCLK_SRC>, <&ccu CLK_ESPI_SCLK>, <&ccu CLK_ESPI_MCLK>;
+			clock-names = "sclk_src", "sclk", "mclk";
+			resets = <&reset RESET_ESPI>;
+			reset-names = "espi_reset";
+			assigned-clocks = <&ccu CLK_ESPI_SCLK>;
+			assigned-clock-parents = <&ccu CLK_ESPI_SCLK_SRC>;
+
+			pr_io_base = <0x86000000>;
+			pr-mem-base0 = <0x84000000>;
+			pr-mem-base1 = <0xCAC8C000>;
+
+			/* Virtual-wire GPIO mapping configuration */
+			/* vw-gpio-mapping = <0 0x80>,             */
+			/* 				<1 0x81>,                  */
+			/* 				<2 0x82>,                  */
+			/* 				<3 0x83>;                  */
+
+			/* eSPI Master configuration */
+			operating-frequency = <20>;   /* 20MHz (will negotiate with slave) */
+			io-mode = "single";           /* "single", "dual", or "quad" */
+			alert-mode = "io1";           /* "pin" or "io1" */
+			alert-type = "open-drain";    /* "open-drain" or "push-pull" */
+
+			/* Features */
+			crc-enable;                    /* Enable CRC checking */
+			response-modifier-enable;      /* Enable response modifier */
+			auto-gating-enable;            /* Enable auto clock gating */
+
+			/* Channel support (master capabilities) */
+			peripheral-channel-enable;     /* Enable Peripheral channel */
+			vwire-channel-enable;          /* Enable Virtual Wire channel */
+			oob-channel-enable;            /* Enable OOB channel */
+			flash-channel-enable;          /* Enable Flash channel */
+
+			/* Timing configuration */
+			watchdog-timeout = <0xFFFF>;   /* Watchdog timeout value */
+			status = "disabled";
+		};
+
+		ufs: ufs@c0e00000 {
+			compatible = "spacemit,k3-ufshci";
+			reg = <0x0 0xc0e00000 0x0 0x30000>;
+			clocks = <&ccu CLK_UFS_ACLK>,
+				 <&ccu CLK_UFS_REFCLK>;
+			clock-names = "aclk", "refclk";
+			resets = <&reset RESET_UFS_ACLK>;
+			reset-names = "aclk_reset";
+			clock-freq = <491520000>;
+			ref-clk-freq = <19200000>;
+			status = "disabled";
+		};
+
+		watchdog: watchdog@d4014000 {
+			compatible = "spacemit,k1x-wdt";
+			reg = <0x0 0xd4014000 0x0 0x1000>,
+			      <0x0 0xd4051020 0x0 0x4>;
+			clocks = <&ccu CLK_TIMERS0>;
+			resets = <&reset RESET_TIMERS0>;
+			status = "okay";
+		};
+	};
+
+	wdt_reboot {
+		compatible = "wdt-reboot";
+		status = "okay";
+	};
+
+	/* X100 PMU (Performance Monitoring Unit) */
+	pmu {
+		compatible = "riscv,pmu";
+
+		riscv,event-to-mhpmevent =
+			/* CPU_CYCLES */
+			<0x00001 0x0 0x1e>,
+			/* INSTRUCTIONS */
+			<0x00002 0x0 0x1f>,
+			/* BRANCH_INSTRUCTIONS */
+			<0x00005 0x0 0x01>,
+			/* BRANCH_MISSES */
+			<0x00006 0x0 0x02>,
+			/* STALLED_CYCLES_FRONTEND */
+			<0x00008 0x0 0x03>,
+			/* STALLED_CYCLES_BACKEND */
+			<0x00009 0x0 0x04>,
+			/* L1D_READ_ACCESS */
+			<0x10000 0x0 0x06>,
+			/* L1D_READ_MISS */
+			<0x10001 0x0 0x05>,
+			/* L1D_WRITE_ACCESS */
+			<0x10002 0x0 0x0a>,
+			/* L1D_WRITE_MISS */
+			<0x10003 0x0 0x09>,
+			/* L1D_PREFETCH_ACCESS */
+			<0x10004 0x0 0x08>,
+			/* L1D_PREFETCH_MISS */
+			<0x10005 0x0 0x07>,
+			/* L1I_READ_ACCESS  */
+			<0x10008 0x0 0x0c>,
+			/* L1I_READ_MISS */
+			<0x10009 0x0 0x0b>,
+			/* DTLB_READ_ACCESS */
+			<0x10018 0x0 0x16>,
+			/* DTLB_WRITE_ACCESS */
+			<0x1001a 0x0 0x1a>,
+			/* DTLB_WRITE_MISS */
+			<0x1001b 0x0 0x19>,
+			/* ITLB_READ_ACCESS */
+			<0x10020 0x0 0x1c>,
+			/* ITLB_READ_MISS */
+			<0x10021 0x0 0x1b>;
+
+		/*
+		 * 16 valid counters: mhpmcounter3 ~ mhpmcounter18
+		 *   - mhpmcounter17: Cycles
+		 *   - mhpmcounter18: Instructions
+		 *   - mhpmcounter3~16: Other events
+		 */
+		riscv,event-to-mhpmcounters =
+			<0x00001 0x00001 0x00020000>,
+			<0x00002 0x00002 0x00040000>,
+			<0x00005 0x00006 0x0001fff8>,
+			<0x00008 0x00009 0x0001fff8>,
+			<0x10000 0x10005 0x0001fff8>,
+			<0x10008 0x10009 0x0001fff8>,
+			<0x10018 0x10018 0x0001fff8>,
+			<0x1001a 0x1001b 0x0001fff8>,
+			<0x10020 0x10021 0x0001fff8>;
+
+		/*
+		 * 16 valid counters: mhpmcounter3 ~ mhpmcounter18
+		 *   - mhpmcounter17: Cycles
+		 *   - mhpmcounter18: Instructions
+		 *   - mhpmcounter3~16: Other events
+		 */
+		riscv,raw-event-to-mhpmcounters =
+			<0x0 0x01 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x02 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x03 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x04 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x05 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x06 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x07 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x08 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x09 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x0a 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x0b 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x0c 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x10 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x11 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x12 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x13 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x14 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x15 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x16 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x17 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x18 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x19 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x1a 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x1b 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x1c 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x1e 0xffffffff 0xffffffff 0x00020000>,  /* Cycles */
+			<0x0 0x1f 0xffffffff 0xffffffff 0x00040000>,  /* Instructions */
+			<0x0 0x20 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x21 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x22 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x24 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x25 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x26 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x27 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x28 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x29 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x2b 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x2d 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x32 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x33 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x34 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x35 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x36 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x37 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x38 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x3a 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x3b 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x3c 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x3d 0xffffffff 0xffffffff 0x0001fff8>,
+			<0x0 0x3f 0xffffffff 0xffffffff 0x0001fff8>;
+	};
+};

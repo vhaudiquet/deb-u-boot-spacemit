@@ -1,0 +1,41 @@
+menuconfig MTD_SPI_NAND
+	bool "SPI NAND device Support"
+	depends on DM_MTD && DM_SPI
+	select MTD_NAND_CORE
+	select SPI_MEM
+	help
+	  This is the framework for the SPI NAND device drivers.
+
+if MTD_SPI_NAND
+
+config SPI_NAND_GIGADEVICE
+	bool "GigaDevice spi nand flash support"
+	default n
+	help
+	 Enable this if want to use GigaDevice spi nand flash.
+
+config SPI_NAND_MACRONIX
+	bool "Macronix spi nand flash support"
+	default n
+	help
+	 Enable this if want to use Macronix spi nand flash.
+
+config SPI_NAND_MICRON
+	bool "Micron spi nand flash support"
+	default n
+	help
+	 Enable this if want to use Micron spi nand flash.
+
+config SPI_NAND_TOSHIBA
+	bool "Toshiba spi nand flash support"
+	default n
+	help
+	 Enable this if want to use TOSHIBA spi nand flash.
+
+config SPI_NAND_WINBOND
+	bool "Winbond spi nand flash support"
+	default n
+	help
+	 Enable this if want to use Winbond spi nand flash.
+
+endif # MTD_SPI_NAND

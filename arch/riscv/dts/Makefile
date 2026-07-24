@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: GPL-2.0+
+
+dtb-$(CONFIG_TARGET_AX25_AE350) += ae350_32.dtb ae350_64.dtb
+dtb-$(CONFIG_TARGET_MICROCHIP_ICICLE) += microchip-mpfs-icicle-kit.dtb
+dtb-$(CONFIG_TARGET_QEMU_VIRT) += qemu-virt32.dtb qemu-virt64.dtb
+dtb-$(CONFIG_TARGET_OPENPITON_RISCV64) += openpiton-riscv64.dtb
+dtb-$(CONFIG_TARGET_SIFIVE_UNLEASHED) += hifive-unleashed-a00.dtb
+dtb-$(CONFIG_TARGET_SIFIVE_UNMATCHED) += hifive-unmatched-a00.dtb
+dtb-$(CONFIG_TARGET_SIPEED_MAIX) += k210-maix-bit.dtb
+dtb-$(CONFIG_TARGET_SPACEMIT_K1PRO) += k1-pro_qemu.dtb k1-pro_sim.dtb k1-pro_fpga.dtb
+dtb-$(CONFIG_TARGET_SPACEMIT_K1X) += k1-x_evb.dtb k1-x_deb2.dtb k1-x_deb1.dtb k1-x_hs450.dtb \
+				     k1-x_kx312.dtb k1-x_MINI-PC.dtb k1-x_mingo.dtb k1-x_MUSE-N1.dtb \
+				     k1-x_MUSE-Pi.dtb k1-x_spl.dtb k1-x_milkv-jupiter.dtb \
+				     k1-x_MUSE-Book.dtb m1-x_milkv-jupiter.dtb \
+				     k1-x_lpi3a.dtb k1-x_MUSE-Card.dtb k1-x_MUSE-Paper.dtb \
+				     k1-x_MUSE-Paper-mini-4g.dtb k1-x_baton-camera.dtb \
+				     k1-x_FusionOne.dtb k1-x_InnoBoard-Pi.dtb k1-x_ZT001H.dtb \
+				     k1-x_uav.dtb k1-x_MUSE-Paper2.dtb k1-x_MUSE-Pi2.dtb
+dtb-$(CONFIG_TARGET_SPACEMIT_K3) += k3_fpga_1x1.dtb k3_spl.dtb k3_evb.dtb k3_deb1.dtb k3_com260.dtb \
+				    k3_com260_kit_v02.dtb k3-deepcomputing-fml13v05.dtb k3_gemini_c0.dtb \
+				    k3_gemini_c1.dtb k3_evb2-1.dtb k3_evb2-2.dtb k3-pico-itx.dtb \
+				    k3_BS01DCMA.dtb k3_com260_ifx.dtb k3_com260_tq.dtb k3_com260_ifx2.dtb
+include $(srctree)/scripts/Makefile.dts
+
+targets += $(dtb-y)
+
+DTC_FLAGS += -R 4 -p 0x1000
+
+PHONY += dtbs
+dtbs: $(addprefix $(obj)/, $(dtb-y))
+	@:
+
+clean-files := *.dtb

@@ -1,0 +1,82 @@
+if TARGET_SPACEMIT_K3
+
+config SYS_BOARD
+	default "k3"
+
+config SYS_VENDOR
+	default "spacemit"
+
+config SYS_CPU
+	default "x100"
+
+config SYS_CONFIG_NAME
+	default "k3"
+
+config SYS_TEXT_BASE
+	default 0x81200000 if SPL
+	default 0x80000000 if !RISCV_SMODE
+	default 0x80200000 if RISCV_SMODE
+
+config SPL_TEXT_BASE
+	default 0x20100000
+
+config SPL_OPENSBI_LOAD_ADDR
+	hex
+	default 0x21000000
+
+config FDT_ADD_MEMORY_NODE
+	bool "enable to add memory node to fdt before boot kernel"
+	default n
+
+config SPACEMIT_BUILD_BIN
+       bool "build fsbl.bin for spacemit image"
+       default n
+
+config BOARD_SPECIFIC_OPTIONS # dummy
+	def_bool y
+	select SPACEMIT_X100
+	imply BOARD_LATE_INIT
+
+choice
+	prompt "product board"
+	default K3_BOARD_FPGA
+
+config K3_BOARD_FPGA
+	bool "k3 board fpga"
+	help
+	  k3 board is fpga.
+
+config K3_BOARD_ASIC
+	bool "k3 board asic"
+	help
+	  k3 board is asic.
+
+endchoice
+
+config BOOT_FROM_USB_DISK
+	default n
+	bool "boot using usb disk"
+	help
+		use USB disk to boot
+
+choice
+	prompt "DDR quick boot framework"
+	default DDR_TRAINING_UPDATE_FSBL
+
+config DDR_TRAINING_SAVE_RESTORE
+	bool "save DDR training info to local storage"
+	help
+		In order to support quick boot, need save DDR training info during
+		fisrt boot, and restore it during next boot.
+
+config DDR_TRAINING_UPDATE_FSBL
+	depends on !CONFIG_RSA_VERIFY
+	bool "write DDR training info back to fsbl image"
+	help
+		In order to support quick boot, update DDR training info to fsbl
+		image during image flash process, then training info is available
+		during normal boot.
+
+endchoice
+
+endif

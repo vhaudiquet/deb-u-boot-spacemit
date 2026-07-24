@@ -1,0 +1,111 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/* Copyright (c) 2025 Spacemit, Inc */
+
+/ {
+	chosen {
+		opensbi-config {
+			compatible = "opensbi,config";
+			heap-size = <0x20000>;
+		};
+
+		opensbi-domains {
+			compatible = "opensbi,domain,config";
+
+			tmem: tmem {
+				compatible = "opensbi,domain,memregion";
+				base = <0x01 0x71000000>;
+				order = <0x18>;
+			};
+
+			allmem: allmem {
+				compatible = "opensbi,domain,memregion";
+				base = <0x01 0x00>;
+				order = <0x40>;
+			};
+
+			tdomain: trusted-domain {
+				compatible = "opensbi,domain,instance";
+				regions = <&allmem 0x3f>;
+				possible-harts = <&cpu_0 &cpu_1 &cpu_2 &cpu_3
+					&cpu_4 &cpu_5 &cpu_6 &cpu_7
+					&cpu_8 &cpu_9 &cpu_10 &cpu_11
+					&cpu_12 &cpu_13 &cpu_14 &cpu_15>;
+				next-addr = <0x01 0x71000000>;
+				next-mode = <0x01>;
+				phandle = <0x02>;
+			};
+
+			udomain: untrusted-domain {
+				compatible = "opensbi,domain,instance";
+				regions = <&tmem 0x00>, <&allmem 0x3f>;
+				system-reset-allowed;
+				system-suspend-allowed;
+				possible-harts = <&cpu_0 &cpu_1 &cpu_2 &cpu_3
+					&cpu_4 &cpu_5 &cpu_6 &cpu_7
+					&cpu_8 &cpu_9 &cpu_10 &cpu_11
+					&cpu_12 &cpu_13 &cpu_14 &cpu_15>;
+				boot-hart = <&cpu_0>;
+				next-addr = <0x01 0x02000000>;
+				next-mode = <0x01>;
+			};
+		};
+	};
+
+	sbi-mpxy-opteed {
+		opensbi-domain-instance = <0x02>;
+		riscv,sbi-mpxy-channel-id = <0x1000 0x1001 0x1002 0x1003
+					0x1004 0x1005 0x1006 0x1007
+					0x1008 0x1009 0x100a 0x100b
+					0x100c 0x100d 0x100e 0x100f>;
+		compatible = "riscv,sbi-mpxy-opteed";
+	};
+};
+
+&cpu_0 {
+	opensbi-domain = <&tdomain>;
+};
+&cpu_1 {
+	opensbi-domain = <&tdomain>;
+};
+&cpu_2 {
+	opensbi-domain = <&tdomain>;
+};
+&cpu_3 {
+	opensbi-domain = <&tdomain>;
+};
+&cpu_4 {
+	opensbi-domain = <&tdomain>;
+};
+&cpu_5 {
+	opensbi-domain = <&tdomain>;
+};
+&cpu_6 {
+	opensbi-domain = <&tdomain>;
+};
+&cpu_7 {
+	opensbi-domain = <&tdomain>;
+};
+&cpu_8 {
+	opensbi-domain = <&tdomain>;
+};
+&cpu_9 {
+	opensbi-domain = <&tdomain>;
+};
+&cpu_10 {
+	opensbi-domain = <&tdomain>;
+};
+&cpu_11 {
+	opensbi-domain = <&tdomain>;
+};
+&cpu_12 {
+	opensbi-domain = <&tdomain>;
+};
+&cpu_13 {
+	opensbi-domain = <&tdomain>;
+};
+&cpu_14 {
+	opensbi-domain = <&tdomain>;
+};
+&cpu_15 {
+	opensbi-domain = <&tdomain>;
+};

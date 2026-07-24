@@ -1,0 +1,113 @@
+From 20674e6dbe2620a3d543be11706ea27ce434726c Mon Sep 17 00:00:00 2001
+From: liweizhi <weizhi.li@spacemit.com>
+Date: Thu, 12 Feb 2026 15:32:06 +0800
+Subject: [PATCH] support flash-kernel
+
+---
+ board/spacemit/k3/k3.env | 15 ++++++---------
+ configs/k3_defconfig     |  6 ++++--
+ include/configs/k3.h     | 18 +++++++++++++++++-
+ 3 files changed, 27 insertions(+), 12 deletions(-)
+
+diff --git a/board/spacemit/k3/k3.env b/board/spacemit/k3/k3.env
+index 3d7cb14019..b266fd1026 100755
+--- a/board/spacemit/k3/k3.env
++++ b/board/spacemit/k3/k3.env
+@@ -116,7 +116,8 @@ dtb_env=if test -n "${product_name}"; then \
+             setenv dtb_name  ${dtb_dir}/${product_name}.dtb; \
+         fi;
+ 
+-detect_dtb=echo "product_name: ${product_name}"; run dtb_env; echo "select ${dtb_name} to load";
++detect_dtb=echo "product_name: ${product_name}"; run dtb_env; echo "select ${dtb_name} to load"; \
++    if test -n "${product_name}"; then setenv fdtfile spacemit/${product_name}.dtb; fi;
+ 
+ loadknl=echo "Loading kernel..."; \
+         load ${bootfs_devname} ${boot_devnum}:${bootfs_part} ${kernel_addr_r} ${knl_name};
+@@ -141,13 +142,9 @@ loaddtb=echo "Loading dtb..."; \
+ load_grub=echo "Loading grub..."; \
+             load ${bootfs_devname} ${boot_devnum}:${esp_index} ${kernel_addr_r} ${grub_file};
+ 
+-# bootm command for fit image, booti command for PE or compress PE image
+-start_kernel=fdt addr ${kernel_addr_r}; \
+-        if fdt list /; then \
+-            bootm ${kernel_addr_r} ${ramdisk_combo} ${fdt_addr_r}; \
+-        else \
+-            booti ${kernel_addr_r} ${ramdisk_combo} ${fdt_addr_r}; \
+-        fi;
++# booti for Image/Image.gz, bootm for FIT image (Image.itb)
++start_kernel=booti ${kernel_addr_r} ${ramdisk_combo} ${fdt_addr_r} || \
++        bootm ${kernel_addr_r} ${ramdisk_combo} ${fdt_addr_r};
+ 
+ boot_kernel=run set_root_arg; \
+         run detect_dtb; \
+@@ -330,7 +327,7 @@ autoboot=if test ${boot_device} = nand; then \
+                 run udisk_boot; \
+         fi;
+ 
+-bootcmd=run autoboot; echo "run autoboot"
++bootcmd=run detect_dtb; run distro_bootcmd || run autoboot
+ 
+ // Boot menu definitions
+ boot_default=echo "Current Boot Device: ${boot_device}"
+diff --git a/configs/k3_defconfig b/configs/k3_defconfig
+index 2175e89342..a21ca52592 100644
+--- a/configs/k3_defconfig
++++ b/configs/k3_defconfig
+@@ -32,8 +32,10 @@ CONFIG_FIT=y
+ # CONFIG_FIT_FULL_CHECK is not set
+ CONFIG_SPL_LOAD_FIT_ADDRESS=0x140000000
+ CONFIG_SPL_FIT_IMAGE_POST_PROCESS=y
+-# CONFIG_BOOTSTD is not set
+-# CONFIG_LEGACY_IMAGE_FORMAT is not set
++CONFIG_BOOTSTD=y
++CONFIG_BOOTSTD_DEFAULTS=y
++CONFIG_BOOTMETH_SCRIPT=y
++CONFIG_LEGACY_IMAGE_FORMAT=y
+ CONFIG_SUPPORT_RAW_INITRD=y
+ CONFIG_BOOTDELAY=0
+ CONFIG_AUTOBOOT_KEYED=y
+diff --git a/include/configs/k3.h b/include/configs/k3.h
+index 14803f76b2..016604df22 100644
+--- a/include/configs/k3.h
++++ b/include/configs/k3.h
+@@ -139,6 +139,20 @@ struct k3_nor_boot_target {
+ const struct k3_nor_boot_target *k3_nor_get_boot_prio(unsigned int *count);
+ #endif
+ 
++/* ****************************************************************************************
++ * Distro boot support
++ * ***************************************************************************************/
++#define SCRIPT_LOAD_ADDR		0x12F000000
++
++#define BOOT_TARGET_DEVICES(func) \
++	func(MMC, mmc, 0) \
++	func(MMC, mmc, 2) \
++	func(NVME, nvme, 0) \
++	func(SCSI, scsi, 0) \
++	func(USB, usb, 0)
++
++#include <config_distro_bootcmd.h>
++
+ /* ****************************************************************************************
+  * Environment
+  * ***************************************************************************************/
+@@ -149,6 +163,7 @@ const struct k3_nor_boot_target *k3_nor_get_boot_prio(unsigned int *count);
+ 	"ramdisk_addr_r=" __stringify(RAMDISK_LOAD_ADDR) "\0" \
+ 	"fdt_addr_r=" __stringify(KERNEL_DTB_ADDR) "\0" \
+ 	"pxefile_addr_r=" __stringify(CONFIG_FASTBOOT_BUF_ADDR) "\0" \
++	"scriptaddr=" __stringify(SCRIPT_LOAD_ADDR) "\0" \
+ 	"esos_itb_path=esos.itb\0" \
+ 	"uboot_itb_path=u-boot.itb\0" \
+ 	"extra_esos_partition=esos\0" \
+@@ -158,6 +173,7 @@ const struct k3_nor_boot_target *k3_nor_get_boot_prio(unsigned int *count);
+ 	"uboot_offset=0x800000\0" \
+ 	"splashimage=" __stringify(CONFIG_FASTBOOT_BUF_ADDR) "\0" \
+ 	"splashpos=m,m\0" \
+-	"splashfile=bianbu.bmp\0"
++	"splashfile=bianbu.bmp\0" \
++	BOOTENV
+ 
+ #endif /* __SPACEMIT_K3_CONFIG_H */
+-- 
+2.51.0
+
