@@ -1070,6 +1070,7 @@ spacemit_k3_ufs_dump_conf_unit(struct ufs_hba *hba, const char *tag,
 static void spacemit_k3_ufs_dump_conf_state_err(struct ufs_hba *hba,
 						const char *tag,
 						const u8 *desc_buf,
+						int desc_len,
 						int head_desc_size,
 						int unit_desc_size,
 						int source_lun)
@@ -1077,8 +1078,13 @@ static void spacemit_k3_ufs_dump_conf_state_err(struct ufs_hba *hba,
 	int offset0 = head_desc_size;
 	u32 alloc0 = 0;
 	u32 src_alloc = 0;
+	int unit_dump_size = CONFIG_DESC_UNIT_PARAM_CON_CAP + 2;
 
-	if (head_desc_size >= CONFIG_DESC_HEADER_PARAM_NUM_SHA_WB + 4) {
+	if (unit_desc_size >= CONFIG_DESC_UNIT_PARAM_LUN_WB_BUF_ALLOC_UNIT + 4)
+		unit_dump_size = CONFIG_DESC_UNIT_PARAM_LUN_WB_BUF_ALLOC_UNIT + 4;
+
+	if (head_desc_size >= CONFIG_DESC_HEADER_PARAM_NUM_SHA_WB + 4 &&
+	    desc_len >= CONFIG_DESC_HEADER_PARAM_NUM_SHA_WB + 4) {
 		/* Keep output compact but include the header fields that can block writes. */
 		dev_err(hba->dev,
 			"ufs: %s cfg boot_en=%u desc_acc=%u init_pwr=%u high_lun=%u rpmb_en=%u wb_type=%u shared_wb=%u\n",
@@ -1089,6 +1095,18 @@ static void spacemit_k3_ufs_dump_conf_state_err(struct ufs_hba *hba,
 			desc_buf[CONFIG_DESC_HEADER_PARAM_RPMB_REG_EN],
 			desc_buf[CONFIG_DESC_HEADER_PARAM_WB_BUF_TYP],
 			get_unaligned_be32(&desc_buf[CONFIG_DESC_HEADER_PARAM_NUM_SHA_WB]));
+	} else if (desc_len < head_desc_size) {
+		dev_err(hba->dev,
+			"ufs: %s cfg dump truncated len=%d head=0x%x\n",
+			tag, desc_len, head_desc_size);
+	}
+
+	if (unit_desc_size < unit_dump_size ||
+	    desc_len < offset0 + unit_dump_size) {
+		dev_err(hba->dev,
+			"ufs: %s LU0 dump truncated len=%d offset=0x%x unit=0x%x\n",
+			tag, desc_len, offset0, unit_desc_size);
+		return;
 	}
 
 	if (unit_desc_size >= CONFIG_DESC_UNIT_PARAM_NUM_ALLOC_UNIT + 4)
@@ -1110,8 +1128,17 @@ static void spacemit_k3_ufs_dump_conf_state_err(struct ufs_hba *hba,
 						    CONFIG_DESC_UNIT_PARAM_LUN_WB_BUF_ALLOC_UNIT]) :
 			0);
 
-	if (source_lun > 0) {
+	if (source_lun > 0 && source_lun < SPACEMIT_UFS_CONFIG_LUN_SLOTS) {
 		int src_offset = head_desc_size + unit_desc_size * source_lun;
+
+		if (unit_desc_size < unit_dump_size ||
+		    desc_len < src_offset + unit_dump_size) {
+			dev_err(hba->dev,
+				"ufs: %s LU%d dump truncated len=%d offset=0x%x unit=0x%x\n",
+				tag, source_lun, desc_len, src_offset,
+				unit_desc_size);
+			return;
+		}
 
 		if (unit_desc_size >= CONFIG_DESC_UNIT_PARAM_NUM_ALLOC_UNIT + 4)
 			src_alloc = get_unaligned_be32(
@@ -1135,6 +1162,76 @@ static void spacemit_k3_ufs_dump_conf_state_err(struct ufs_hba *hba,
 							    CONFIG_DESC_UNIT_PARAM_LUN_WB_BUF_ALLOC_UNIT]) :
 				0);
 	}
+}
+
+static int spacemit_k3_ufs_verify_conf_desc_write(struct ufs_hba *hba,
+						  const u8 *expected,
+						  int desc_len,
+						  int head_desc_size,
+						  int unit_desc_size,
+						  int source_lun)
+{
+	u8 *readback;
+	int read_len;
+	int ret;
+	int diff = -1;
+	int valid_read_len;
+	int i;
+
+	readback = kmalloc(desc_len, GFP_KERNEL);
+	if (!readback)
+		return -ENOMEM;
+
+	read_len = desc_len;
+	ret = ufshcd_query_descriptor_retry(hba, UPIU_QUERY_OPCODE_READ_DESC,
+					    QUERY_DESC_IDN_CONFIGURATION, 0, 0,
+					    readback, &read_len);
+	if (ret) {
+		dev_err(hba->dev,
+			"ufs: failed to read back config descriptor after WRITE_DESC: %d\n",
+			ret);
+		kfree(readback);
+		return spacemit_k3_ufs_map_query_error(ret);
+	}
+
+	if (read_len == desc_len && !memcmp(readback, expected, desc_len)) {
+		dev_dbg(hba->dev,
+			"ufs: config descriptor write verified by readback\n");
+		kfree(readback);
+		return 0;
+	}
+
+	valid_read_len = read_len;
+	if (valid_read_len < 0)
+		valid_read_len = 0;
+	else if (valid_read_len > desc_len)
+		valid_read_len = desc_len;
+
+	for (i = 0; i < valid_read_len; i++) {
+		if (readback[i] != expected[i]) {
+			diff = i;
+			break;
+		}
+	}
+
+	if (diff < 0 && read_len != desc_len)
+		diff = valid_read_len;
+
+	dev_err(hba->dev,
+		"ufs: config descriptor readback mismatch len=%d expected_len=%d first_diff=0x%x expected=0x%02x readback=0x%02x\n",
+		read_len, desc_len, diff,
+		diff >= 0 && diff < desc_len ? expected[diff] : 0,
+		diff >= 0 && diff < valid_read_len ? readback[diff] : 0);
+
+	spacemit_k3_ufs_dump_conf_state_err(hba, "requested", expected,
+					    desc_len, head_desc_size,
+					    unit_desc_size, source_lun);
+	spacemit_k3_ufs_dump_conf_state_err(hba, "readback", readback,
+					    valid_read_len, head_desc_size,
+					    unit_desc_size, source_lun);
+
+	kfree(readback);
+	return -EIO;
 }
 
 static int
@@ -1326,6 +1423,7 @@ spacemit_k3_ufs_check_and_config_single_lun(struct udevice *dev)
 	int conf_enabled_lun_count = 0;
 	int conf_head_desc;
 	int conf_unit_desc;
+	int write_len;
 	int source_lun = -1;
 	int template_lun = -1;
 	int conf_template_lun = -1;
@@ -1612,21 +1710,24 @@ spacemit_k3_ufs_check_and_config_single_lun(struct udevice *dev)
 	 */
 	mdelay(SPACEMIT_K3_UFS_RECONF_SETTLE_MS);
 
+	write_len = hba->desc_size.conf_desc;
 	ret = ufshcd_query_descriptor_retry(hba, UPIU_QUERY_OPCODE_WRITE_DESC,
 					    QUERY_DESC_IDN_CONFIGURATION, 0, 0,
 					    desc_buf,
-					    &hba->desc_size.conf_desc);
+					    &write_len);
 
-		if (ret) {
-			int mapped_ret = spacemit_k3_ufs_map_query_error(ret);
+	if (ret) {
+		int mapped_ret = spacemit_k3_ufs_map_query_error(ret);
 
-			spacemit_k3_ufs_log_unrecoverable_query_error(hba, ret);
-			if (orig_desc_buf) {
-				spacemit_k3_ufs_dump_conf_state_err(
-					hba, "current", orig_desc_buf, conf_head_desc,
+		spacemit_k3_ufs_log_unrecoverable_query_error(hba, ret);
+		if (orig_desc_buf) {
+			spacemit_k3_ufs_dump_conf_state_err(
+				hba, "current", orig_desc_buf,
+				hba->desc_size.conf_desc, conf_head_desc,
 				conf_unit_desc, source_lun);
 			spacemit_k3_ufs_dump_conf_state_err(
-				hba, "requested", desc_buf, conf_head_desc,
+				hba, "requested", desc_buf,
+				hba->desc_size.conf_desc, conf_head_desc,
 				conf_unit_desc, source_lun);
 		}
 
@@ -1635,6 +1736,14 @@ spacemit_k3_ufs_check_and_config_single_lun(struct udevice *dev)
 		ret = mapped_ret;
 		goto out;
 	}
+
+	ret = spacemit_k3_ufs_verify_conf_desc_write(hba, desc_buf,
+						     hba->desc_size.conf_desc,
+						     conf_head_desc,
+						     conf_unit_desc,
+						     source_lun);
+	if (ret)
+		goto out;
 
 	dev_info(
 		hba->dev,
@@ -1719,9 +1828,9 @@ out:
 	return ret;
 }
 
-static int spacemit_k3_ufs_reprobe(struct udevice *dev, const char *reason)
+static int spacemit_k3_ufs_reprobe(struct udevice *dev, const char *reason,
+				   bool reset_first)
 {
-	struct spacemit_k3_ufs_priv *priv = dev_get_priv(dev);
 	struct ufs_hba *hba = dev_get_uclass_priv(dev);
 	struct ufs_hba_ops *hba_ops = (struct ufs_hba_ops *)dev->driver_data;
 	int ret;
@@ -1729,13 +1838,15 @@ static int spacemit_k3_ufs_reprobe(struct udevice *dev, const char *reason)
 	if (!hba_ops)
 		return -ENODEV;
 
-	if (hba_ops->device_reset)
+	if (reset_first && hba_ops->device_reset) {
+		dev_dbg(hba->dev,
+			"ufs: reset UFS before reprobe after %s\n", reason);
 		hba_ops->device_reset(hba);
+		mdelay(20);
+	}
 
 	ret = ufshcd_probe(dev, hba_ops);
 	if (ret) {
-		spacemit_k3_ufs_phy_shutdown(hba, priv);
-		spacemit_k3_ufs_clk_disable(priv);
 		dev_err(hba->dev, "ufs reprobe after %s failed: %d\n", reason, ret);
 		return ret;
 	}
@@ -1767,8 +1878,8 @@ int ufs_prepare_dev_for_flash(int index)
 		return 0;
 
 	dev_info(hba->dev,
-		 "restarting UFS once to apply single-LUN layout for flashing\n");
-	ret = spacemit_k3_ufs_reprobe(dev, "single-LUN provisioning");
+		 "resetting UFS once to apply single-LUN layout for flashing\n");
+	ret = spacemit_k3_ufs_reprobe(dev, "single-LUN provisioning", true);
 	if (ret)
 		return ret;
 

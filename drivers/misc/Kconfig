@@ -666,7 +666,7 @@ config SPACEMIT_K1X_EFUSE
 
 config SPL_SPACEMIT_K1X_EFUSE
 	bool "Support Spacemit K1x soc eFUSE read in spl"
-	depends on MISC
+	depends on SPL_MISC
 	help
 	  This enable efuse read support in SPL, on Spacemit K1x SoCs.
 

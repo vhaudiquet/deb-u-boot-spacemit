@@ -167,6 +167,26 @@
 				algo = "crc32";
 			};
 		};
+
+		fdt_16 {
+			description = "k3_com260_ifx_tq.dtb";
+			type = "flat_dt";
+			compression = "none";
+			data = /incbin/("../dtb/k3_com260_ifx_tq.dtb");
+			hash-1 {
+				algo = "crc32";
+			};
+		};
+
+		fdt_17 {
+			description = "k3-firefly-aibox-k3.dtb";
+			type = "flat_dt";
+			compression = "none";
+			data = /incbin/("../dtb/k3-firefly-aibox-k3.dtb");
+			hash-1 {
+				algo = "crc32";
+			};
+		};
 	};
 
 	configurations {
@@ -260,5 +280,17 @@
 			loadables = "uboot";
 			fdt = "fdt_15";
 		};
+
+		conf_16 {
+			description = "k3_com260_ifx_tq";
+			loadables = "uboot";
+			fdt = "fdt_16";
+		};
+
+		conf_17 {
+			description = "k3-firefly-aibox-k3";
+			loadables = "uboot";
+			fdt = "fdt_17";
+        };
 	};
 };

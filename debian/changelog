@@ -1,3 +1,9 @@
+u-boot-spacemit (1.0.5) resolute; urgency=medium
+
+  * Rebase onto the upstream u-boot-spacemit 1.0.5 snapshot.
+
+ -- Valentin Haudiquet <valentin.haudiquet@canonical.com>  Tue, 11 Aug 2026 14:27:59 +0200
+
 u-boot-spacemit (1.0.2) resolute; urgency=medium
 
   * 1.0.2

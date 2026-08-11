@@ -139,6 +139,33 @@ static void k3_nor_update_prio_from_dtb(void)
 		k3_nor_set_highest_prio(prior_target);
 }
 
+static void check_pxe_second_boot(void)
+{
+	char buf[64] = {0};
+	const char *ip;
+	struct in_addr addr;
+
+	if (get_tlvinfo(TLV_CODE_SECOND_BOOT_DEV, buf, sizeof(buf) - 1) <= 0)
+		return;
+
+	// when match pxe or pxe@<ip>, means pxe boot mode
+	if ( 0 == strcasecmp(buf, "pxe")) {
+		ip = env_get("serverip");
+	} else if (0 == strncasecmp(buf, "pxe@", 4) && buf[4] != '\0') {
+		ip = buf + 4;
+		addr = string_to_ip(ip);
+		if (!addr.s_addr) {
+			pr_warn("PXE: invalid server IP address: %s\n", ip);
+			return;
+		}
+	} else {
+		return;
+	}
+
+	env_set("boot_device", "pxe");
+	env_set("pxe_server", ip);
+	pr_info("PXE boot configured, server: %s\n", ip);
+}
 
 /*
  * Returns if check dtb is needed
@@ -634,31 +661,37 @@ uint32_t get_serial_number(char *sn, uint32_t max_size)
 	uint64_t chipid = 0;
 	uint32_t i, seed;
 	int ret = -1;
+	int len;
 	char temp[32], *serial;
 
 	memset(temp, 0, sizeof(temp));
 	memset(sn, 0, max_size);
 
-	serial = env_get("serial#");
-	if (NULL != serial) {
-		strlcpy(temp, serial, sizeof(temp));
-	}
-	else if (get_tlvinfo(TLV_CODE_SERIAL_NUMBER, temp, sizeof(temp)) <= 0) {
-#if CONFIG_IS_ENABLED(SPACEMIT_K1X_EFUSE)
-		// use chipid in efuse as serial number
-		ret = get_chipid_from_efuse(&chipid);
-#endif
-		// check if chipid is valid
-		if ((0 != ret) || (0 == chipid)) {
-			seed = get_ticks();
-			for (i = 0; i < sizeof(chipid); i++) {
-				((uint8_t*)&chipid)[i] = rand_r(&seed);
-			}
+	// eeprom(TLV) is prior than env "serial#"
+	len = get_tlvinfo(TLV_CODE_SERIAL_NUMBER, temp, sizeof(temp) - 1);
+	if (len <= 0) {
+		serial = env_get("serial#");
+		if (NULL != serial) {
+			strlcpy(temp, serial, sizeof(temp));
 		}
-		snprintf(temp, sizeof(temp), "%016llx", chipid);
+		else {
+#if CONFIG_IS_ENABLED(SPACEMIT_K1X_EFUSE)
+			// use chipid in efuse as serial number
+			ret = get_chipid_from_efuse(&chipid);
+#endif
+			// check if chipid is valid
+			if ((0 != ret) || (0 == chipid)) {
+				seed = get_ticks();
+				for (i = 0; i < sizeof(chipid); i++) {
+					((uint8_t*)&chipid)[i] = rand_r(&seed);
+				}
+			}
+			snprintf(temp, sizeof(temp), "%016llx", chipid);
+		}
+		len = strlen(temp);
 	}
 
-	i = min(max_size, (uint32_t)strlen(temp));
+	i = min(max_size, (uint32_t)len);
 	memcpy(sn, temp, i);
 	return i;
 }
@@ -965,6 +998,7 @@ int board_late_init(void)
 	import_env_from_bootfs();
 
 	setenv_boot_mode();
+	check_pxe_second_boot();
 
 	/* Defaults for NOR boot fallback scripting */
 	if (!env_get("usb_devnum"))
@@ -1594,10 +1628,10 @@ static void increase_eth_addr(uint8_t *mac_addr)
 
 int read_mac_from_tlv(void)
 {
-	unsigned int i;
+	unsigned int i, j;
 	uint32_t mac_size;
 	u8 macbase[6];
-	int maccount;
+	int maccount, eth_off;
 
 	maccount = 1;
 	if (get_tlvinfo(TLV_CODE_MAC_SIZE, (char*)&mac_size, 2) > 0) {
@@ -1609,24 +1643,38 @@ int read_mac_from_tlv(void)
 		return 0;
 	}
 
-	for (i = 0; i < maccount; i++) {
+	eth_off = 0;
+	// 4 ethernet max
+	for (i = 0, j = 0; i < 4 && j < maccount; i++) {
 		char ethaddr[18];
 		char enetvar[11];
+		const char* status;
+
+		sprintf(enetvar, i ? "eth%daddr" : "ethaddr", i);
+
+		if (eth_off >= 0) {
+			eth_off = fdt_node_offset_by_compatible(gd->fdt_blob, eth_off,
+				"spacemit,k3-dwmac-eqos");
+			if (eth_off >= 0) {
+				status = fdt_getprop(gd->fdt_blob, eth_off, "status", NULL);
+				if (status && !strcmp(status, "disabled")) {
+					// clear disabled ethernet node
+					env_set(enetvar, NULL);
+					continue;
+				}
+			}
+		}
 
 		sprintf(ethaddr, "%02X:%02X:%02X:%02X:%02X:%02X",
 			macbase[0], macbase[1], macbase[2],
 			macbase[3], macbase[4], macbase[5]);
-		sprintf(enetvar, i ? "eth%daddr" : "ethaddr", i);
-		/* Only initialize environment variables that are blank
-			* (i.e. have not yet been set)
-			*/
-		if (!env_get(enetvar))
-			env_set(enetvar, ethaddr);
+		env_set(enetvar, ethaddr);
 
 		increase_eth_addr(macbase);
+		j++;
 	}
 
-	return maccount;
+	return j;
 }
 
 void set_env_ethaddr(void)

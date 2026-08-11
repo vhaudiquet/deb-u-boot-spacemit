@@ -1,0 +1,217 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * finch board's base device tree configure.
+ *
+ * Copyright (C) 2025 SPACEMIT Micro Limited
+ */
+
+#include "k3-firefly-common.dtsi"
+
+#ifdef FF_UART0
+&uart0 {
+	status = "okay";
+};
+#endif
+
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c0_0>;
+	status = "okay";
+
+	tcpc@25 {
+		compatible = "fcs,fusb301";
+		reg = <0x25>;
+
+		connector {
+			compatible = "usb-c-connector";
+			label = "USB-C";
+			power-role = "dual";
+			data-role = "dual";
+			try-power-role = "sink";
+			source-pdos = <PDO_FIXED(5000, 2500, PDO_FIXED_USB_COMM)>;
+			sink-pdos = <PDO_FIXED(5000, 1400, PDO_FIXED_USB_COMM)>;
+			op-sink-microwatt = <15000000>;
+			self-powered;
+
+			port {
+				fusb301_sw_ep: endpoint {
+					remote-endpoint = <&typec_orient_sw>;
+				};
+			};
+		};
+	};
+};
+
+#ifdef FF_USB
+&usb3_porta_u2phy {
+	status = "okay";
+};
+
+&usb3_porta_u3phy {
+	status = "okay";
+	orientation-switch;
+	port {
+		typec_orient_sw: endpoint {
+			remote-endpoint = <&fusb301_sw_ep>;
+		};
+	};
+};
+
+&usb3_porta {
+	status = "okay";
+	dwc3@cad00000 {
+		dr_mode = "peripheral";
+	};
+};
+
+&usb3_portb_u2phy {
+	status = "okay";
+};
+
+&usb3_portb_u3phy {
+	status = "okay";
+};
+
+&usb3_portb {
+	status = "okay";
+};
+#endif
+
+#ifdef FF_GMAC1
+&eth1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_gmac1>;
+
+	phy-reset-pin = <37>;
+	max-speed = <1000>;
+	clk_tuning_enable;
+	clk-tuning-by-delayline;
+
+	tx-phase = <47>;
+	rx-phase = <53>;
+
+	phy-mode = "rgmii";
+	phy-handle = <&rgmii1>;
+
+	status = "okay";
+
+	mdio {
+		#address-cells = <0x1>;
+		#size-cells = <0x0>;
+		rgmii1: phy@1 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			device_type = "ethernet-phy";
+			reg = <0x1>;
+		};
+	};
+};
+#endif
+
+
+
+#ifdef FF_PCIE
+&pcie_phy0 {
+	status = "okay";
+};
+
+&pcie_phy1 {
+	status = "okay";
+};
+
+&pcie0_rc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pcie0_1>;
+
+	num-lanes = <4>;
+	phys = <&pcie_phy0>, <&pcie_phy1>;
+	phy-names = "pcie-phy0", "pcie-phy1";
+
+	status = "okay";
+};
+#endif
+
+#ifdef FF_FAN
+&i2c6 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c6_0>;
+	status = "okay";
+
+	ctf2301: ctf2301@4c {
+		compatible = "sensylink,ctf2301";
+		reg = <0x4c>;
+		#cooling-cells = <2>;
+	};
+};
+#endif
+
+#ifdef FF_DP1
+&dpu {
+	status = "okay";
+
+	dpu_out: port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		dpu_out_dp1: endpoint@1 {
+			reg = <1>;
+			remote-endpoint = <&dp1_in_dpu>;
+		};
+	};
+
+};
+
+&dp1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_dp1_3>;
+	status = "okay";
+
+	ports {
+		dp1_in: port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			dp1_in_dpu: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&dpu_out_dp1>;
+			};
+		};
+	};
+};
+#endif
+
+&gpio{
+	gpio-ranges = <
+		&pinctrl 04 GPIO_04 1
+		&pinctrl 53 GPIO_53 1
+	>;
+};
+
+&pinctrl {
+	pinctrl-single,gpio-range = <
+		&range GPIO_04  1 (MUX_MODE0 | EDGE_NONE | PULL_UP   | PAD_DS4)
+		&range GPIO_53  1 (MUX_MODE0 | EDGE_NONE | PULL_UP   | PAD_DS4)
+	>;
+
+#ifdef FF_GMAC1
+	gmac1_grp {
+		power-source = <1800>;
+	};
+#endif
+
+#ifdef FF_PCIE
+	pcie0_1_grp {
+		pinctrl-single,pins =<
+			K3_PADCONF(GPIO_79, MUX_MODE5, (EDGE_NONE | PULL_UP | PAD_DS15)) /* PCIeA_perstn */
+			K3_PADCONF(GPIO_80, MUX_MODE5, (EDGE_NONE | PULL_UP | PAD_DS15)) /* PCIeA_waken */
+			K3_PADCONF(GPIO_81, MUX_MODE5, (EDGE_NONE | PULL_UP | PAD_DS15)) /* PCIeA_clkreqn */
+		>;
+	};
+#endif
+
+#ifdef FF_DP1
+	dp1_3_grp {
+		pinctrl-single,pins =<
+			K3_PADCONF(GPIO_72, MUX_MODE4, (EDGE_NONE | PULL_DIS | PAD_DS8)) /* dp1_hpd */
+		>;
+	};
+#endif
+};

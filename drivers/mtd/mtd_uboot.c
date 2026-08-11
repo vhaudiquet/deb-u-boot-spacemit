@@ -326,6 +326,16 @@ int mtd_probe_devices(void)
 	mtd_probe_uclass_spi_nor_devs();
 
 	/*
+	 * In SPL before full malloc is initialized, malloc_simple() is used
+	 * which is a bump allocator that doesn't support free(). Skip partition
+	 * management entirely to avoid carrying malloc_simple-allocated
+	 * mtd_info/old_mtdparts pointers into the full malloc phase, which
+	 * would cause kfree/free to panic on those addresses.
+	 */
+	if (!(gd->flags & GD_FLG_FULL_MALLOC_INIT))
+		return 0;
+
+	/*
 	 * Check if mtdparts/mtdids changed, if the MTD dev list was updated
 	 * or if our previous attempt to delete existing partititions failed.
 	 * In any of these cases we want to update the partitions, otherwise,

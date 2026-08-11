@@ -877,13 +877,14 @@ static void ufshcd_prepare_utp_query_req_upiu(struct ufs_hba *hba,
 	/* Copy the Descriptor */
 	if (query->request.upiu_req.opcode == UPIU_QUERY_OPCODE_WRITE_DESC) {
 		memcpy(ucd_req_ptr + 1, query->descriptor, len);
-		ufshcd_cache_flush_and_invalidate(ucd_req_ptr, 2 * sizeof(*ucd_req_ptr));
+		ufshcd_cache_flush_and_invalidate(ucd_req_ptr,
+						  sizeof(*ucd_req_ptr) + len);
 	} else {
 		ufshcd_cache_flush_and_invalidate(ucd_req_ptr, sizeof(*ucd_req_ptr));
 	}
 
-	memset(hba->ucd_rsp_ptr, 0, sizeof(struct utp_upiu_rsp));
-	ufshcd_cache_flush_and_invalidate(hba->ucd_rsp_ptr, sizeof(*hba->ucd_rsp_ptr));
+	memset(hba->ucd_rsp_ptr, 0, ALIGNED_UPIU_SIZE);
+	ufshcd_cache_flush_and_invalidate(hba->ucd_rsp_ptr, ALIGNED_UPIU_SIZE);
 }
 
 static inline void ufshcd_prepare_utp_nop_upiu(struct ufs_hba *hba)
@@ -1066,8 +1067,8 @@ static int ufshcd_exec_dev_cmd(struct ufs_hba *hba, enum dev_cmd_type cmd_type,
 		return -EINVAL;
 	}
 
-	/* Invalidate cache before reading response UPIU */
-	ufshcd_cache_flush_and_invalidate(hba->ucd_rsp_ptr, sizeof(*hba->ucd_rsp_ptr));
+	/* Query READ_DESC data lives after the fixed response UPIU header. */
+	ufshcd_cache_flush_and_invalidate(hba->ucd_rsp_ptr, ALIGNED_UPIU_SIZE);
 
 	resp = ufshcd_get_req_rsp(hba->ucd_rsp_ptr);
 	switch (resp) {

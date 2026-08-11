@@ -2671,7 +2671,6 @@ static struct spacemit_clk_table spacemit_k3_clks = {
 #endif
 
 struct spacemit_clk_init_rate init_rate_tbl[] = {
-	{CLK_AXICLK, 307200000},
 	{CLK_APB, 102400000},
 	{CLK_SLOW_UART1, 14745600},
 };

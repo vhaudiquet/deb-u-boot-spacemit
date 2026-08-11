@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * k3 com260 ifx board device tree (U-Boot).
+ * k3 com260 tq board device tree (U-Boot).
  *
  * Copyright (C) 2025 SPACEMIT Micro Limited
  */
@@ -8,7 +8,7 @@
 #include "k3_com260.dtsi"
 
 / {
-	model = "spacemit k3 com260 ifx board";
+	model = "spacemit k3 com260 ifx tq board";
 };
 
 &i2c3 {
@@ -73,10 +73,6 @@
 			};
 		};
 	};
-};
-
-&usb3_porta_u3phy {
-	lfps-iset-lvl = <3>;
 };
 
 &pcie4_rc {

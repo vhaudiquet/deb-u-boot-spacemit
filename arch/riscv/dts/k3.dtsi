@@ -287,7 +287,7 @@
 			reg = <0 0 0 0>;
 			remoteproc-name = "rcpu0";
 			coreid = <0>;
-			mem_heap_start = <0x1 0x500000>;
+			mem_heap_start = <0x1 0x400000>;
 			mem_heap_size = <0x200000>;
 			fw_boot_entry = <0x1 0x200000>;
 			status = "disabled";
@@ -299,7 +299,7 @@
 			reg = <0 0 0 0>;
 			remoteproc-name = "rcpu1";
 			coreid = <1>;
-			mem_heap_start = <0x1 0xB00000>;
+			mem_heap_start = <0x1 0xa00000>;
 			mem_heap_size = <0x200000>;
 			fw_boot_entry = <0x1 0x800000>;
 			status = "disabled";
@@ -984,7 +984,7 @@
 			reset-names = "aes_reset";
 			clocks = <&ccu CLK_AES_WTM>;
 			clock-names = "aes_core_wtm";
-			status = "disabled";
+			status = "okay";
 		};
 
 		dpu: dpu@c0340000 {

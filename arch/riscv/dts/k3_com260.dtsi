@@ -1,26 +1,19 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * finch board's base device tree configure.
+ * Common device tree configuration for k3 com260 boards (U-Boot).
  *
  * Copyright (C) 2025 SPACEMIT Micro Limited
  */
 
 #include "k3.dtsi"
 #include "k3-pinctrl.dtsi"
-
-/ {
-	model = "spacemit k3 evb2-1 board";
-};
+#include <dt-bindings/usb/pd.h>
 
 &cpus {
 	timebase-frequency = <24000000>;
 };
 
 &pinctrl {
-	gmac0_grp {
-		power-source = <1800>;
-	};
-
 	gmac1_grp {
 		power-source = <1800>;
 	};
@@ -38,14 +31,43 @@
 	status = "okay";
 };
 
-&i2c6 {
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c0_0>;
+	status = "okay";
+
+	tcpc@25 {
+		compatible = "fcs,fusb301";
+		reg = <0x25>;
+
+		connector {
+			compatible = "usb-c-connector";
+			label = "USB-C";
+			power-role = "dual";
+			data-role = "dual";
+			try-power-role = "sink";
+			source-pdos = <PDO_FIXED(5000, 2500, PDO_FIXED_USB_COMM)>;
+			sink-pdos = <PDO_FIXED(5000, 1400, PDO_FIXED_USB_COMM)>;
+			op-sink-microwatt = <15000000>;
+			self-powered;
+
+			port {
+				fusb301_sw_ep: endpoint {
+					remote-endpoint = <&typec_orient_sw>;
+				};
+			};
+		};
+	};
+};
+
+&i2c2 {
 	#address-cells = <1>;
 	#size-cells = <0>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_i2c6_4>;
+	pinctrl-0 = <&pinctrl_i2c2_1>;
 	status = "okay";
 
-	eeprom@50{
+	eeprom@50 {
 		compatible = "atmel,24c02";
 		reg = <0x50>;
 		status = "okay";
@@ -57,8 +79,8 @@
 	pinctrl-0 = <&pinctrl_mmc1>;
 	pinctrl-1 = <&pinctrl_mmc1_uhs>;
 	bus-width = <4>;
-	cd-gpios = <&gpio 86 0>;
-	cd-inverted;
+	cd-gpios = <&gpio 04 0>;
+	//vmmc-supply = <&dcdc_9>;
 	vqmmc-supply = <&ldo_1>;
 	clock-frequency = <204800000>;
 	spacemit,tx_delaycode = <0x1f>;
@@ -66,58 +88,41 @@
 	status = "okay";
 };
 
-/* eMMC */
-&sdhci2 {
-	bus-width = <8>;
-	non-removable;
-	mmc-hs400-1_8v;
-	mmc-hs400-enhanced-strobe;
-	clock-frequency = <375000000>;
-	sdh-phy-module = <1>;
+&usb3_porta_u2phy {
 	status = "okay";
 };
 
-&qspi {
+&usb3_porta_u3phy {
 	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_qspi &pinctrl_qspi_cs0>;
-
-	flash@0 {
-		compatible = "jedec,spi-nor";
-		reg = <0>;
-		spi-max-frequency = <26500000>;
-		m25p,fast-read;
-		broken-flash-reset;
-		status = "okay";
-	};
-};
-
-&eth0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_gmac0>;
-
-	phy-reset-pin = <15>;
-	max-speed = <1000>;
-	clk_tuning_enable;
-	clk-tuning-by-delayline;
-
-	tx-phase = <65>;
-	rx-phase = <50>;
-
-	phy-mode = "rgmii";
-	phy-handle = <&rgmii0>;
-
-	status = "okay";
-
-	mdio {
-		#address-cells = <0x1>;
-		#size-cells = <0x0>;
-		rgmii0: phy@0 {
-			compatible = "ethernet-phy-ieee802.3-c22";
-			device_type = "ethernet-phy";
-			reg = <0x1>;
+	orientation-switch;
+	port {
+		typec_orient_sw: endpoint {
+			remote-endpoint = <&fusb301_sw_ep>;
 		};
 	};
+};
+
+&usb3_porta {
+	status = "okay";
+	dwc3@cad00000 {
+		dr_mode = "peripheral";
+	};
+};
+
+&usb3_portb_u2phy {
+	status = "okay";
+};
+
+&usb3_portb_u3phy {
+	status = "okay";
+};
+
+&usb3_portb {
+	status = "okay";
+};
+
+&ufs {
+	status = "okay";
 };
 
 &eth1 {
@@ -129,8 +134,8 @@
 	clk_tuning_enable;
 	clk-tuning-by-delayline;
 
-	tx-phase = <70>;
-	rx-phase = <58>;
+	tx-phase = <47>;
+	rx-phase = <53>;
 
 	phy-mode = "rgmii";
 	phy-handle = <&rgmii1>;
@@ -148,32 +153,55 @@
 	};
 };
 
-&eth2 {
+&qspi {
+	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_gmac2>;
+	pinctrl-0 = <&pinctrl_qspi &pinctrl_qspi_cs0>;
 
-	phy-reset-pin = <58>;
-	max-speed = <1000>;
-	clk_tuning_enable;
-	clk-tuning-by-delayline;
-
-	tx-phase = <53>;
-	rx-phase = <52>;
-
-	phy-mode = "rgmii";
-	phy-handle = <&rgmii2>;
-
-	status = "disabled";
-
-	mdio {
-		#address-cells = <0x1>;
-		#size-cells = <0x0>;
-		rgmii2: phy@2 {
-			compatible = "ethernet-phy-ieee802.3-c22";
-			device_type = "ethernet-phy";
-			reg = <0x1>;
-		};
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <26500000>;
+		m25p,fast-read;
+		broken-flash-reset;
+		status = "okay";
 	};
+};
+
+&pinctrl {
+	pinctrl-single,gpio-range = <
+		&range GPIO_04  1 (MUX_MODE0 | EDGE_NONE | PULL_UP   | PAD_DS4)
+		&range GPIO_53  1 (MUX_MODE0 | EDGE_NONE | PULL_UP   | PAD_DS4)
+	>;
+
+	pcie0_1_grp {
+		pinctrl-single,pins =<
+			K3_PADCONF(GPIO_79, MUX_MODE5, (EDGE_NONE | PULL_UP | PAD_DS15)) /* PCIeA_perstn */
+			K3_PADCONF(GPIO_80, MUX_MODE5, (EDGE_NONE | PULL_UP | PAD_DS15)) /* PCIeA_waken */
+			K3_PADCONF(GPIO_81, MUX_MODE5, (EDGE_NONE | PULL_UP | PAD_DS15)) /* PCIeA_clkreqn */
+		>;
+	};
+
+	pcie3_0_grp {
+		pinctrl-single,pins =<
+			K3_PADCONF(GPIO_03, MUX_MODE4, (EDGE_NONE | PULL_UP | PAD_DS15)) /* PCIeD_perstn */
+			K3_PADCONF(GPIO_05, MUX_MODE4, (EDGE_NONE | PULL_UP | PAD_DS15)) /* PCIeD_clkreqn */
+		>;
+	};
+
+	pcie4_1_grp {
+		pinctrl-single,pins =<
+			K3_PADCONF(GPIO_76, MUX_MODE5, (EDGE_NONE | PULL_UP | PAD_DS15)) /* PCIeE_perstn */
+			K3_PADCONF(GPIO_78, MUX_MODE5, (EDGE_NONE | PULL_UP | PAD_DS15)) /* PCIeE_clkreqn */
+		>;
+	};
+};
+
+&gpio {
+	gpio-ranges = <
+		&pinctrl 04 GPIO_04 1
+		&pinctrl 53 GPIO_53 1
+	>;
 };
 
 &pcie_phy0 {
@@ -181,14 +209,6 @@
 };
 
 &pcie_phy1 {
-	status = "okay";
-};
-
-&pcie_phy2 {
-	status = "okay";
-};
-
-&pcie_phy3 {
 	status = "okay";
 };
 
@@ -200,29 +220,12 @@
 	status = "okay";
 };
 
-&pcie0_rc{
+&pcie0_rc {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pcie0_1>;
-	phys = <&pcie_phy0>;
-	phy-names = "pcie-phy0";
 
-	num-lanes = <2>;
-	status = "okay";
-};
-
-&pcie1_rc {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_pcie1_1>;
-	phys = <&pcie_phy1>;
-	phy-names = "pcie-phy0";
-
-	status = "okay";
-};
-
-&pcie2_rc {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_pcie2_2>;
-	phys = <&pcie_phy2>, <&pcie_phy3>;
+	num-lanes = <4>;
+	phys = <&pcie_phy0>, <&pcie_phy1>;
 	phy-names = "pcie-phy0", "pcie-phy1";
 
 	status = "okay";
@@ -230,7 +233,8 @@
 
 &pcie3_rc {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_pcie3_1>;
+	pinctrl-0 = <&pinctrl_pcie3_0>;
+
 	phys = <&pcie_phy4>;
 	phy-names = "pcie-phy0";
 
@@ -240,75 +244,21 @@
 &pcie4_rc {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pcie4_1>;
+
 	phys = <&pcie_phy5>;
 	phy-names = "pcie-phy0";
-
-	status = "okay";
 };
 
-&usb2_host_u2phy {
+&i2c6 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c6_0>;
 	status = "okay";
-};
 
-&usb2_host {
-	status = "okay";
-};
-
-&usb3_porta_u2phy {
-	status = "okay";
-};
-
-&usb3_porta_u3phy {
-	status = "okay";
-};
-
-&usb3_porta {
-	status = "okay";
-	u-boot,dm-spl;
-	dwc3@cad00000 {
-		dr_mode = "peripheral";
+	ctf2301: ctf2301@4c {
+		compatible = "sensylink,ctf2301";
+		reg = <0x4c>;
+		#cooling-cells = <2>;
 	};
-};
-
-&ufs {
-	status = "okay";
-};
-
-&pinctrl {
-	pinctrl-single,gpio-range = <
-		&range GPIO_86  1 (MUX_MODE0 | EDGE_NONE | PULL_UP   | PAD_DS4)
-	>;
-
-	pcie1_1_grp {
-		pinctrl-single,pins =<
-			K3_PADCONF(GPIO_88, MUX_MODE4, (EDGE_NONE | PULL_UP | PAD_DS15)) /* PCIeB_perstn */
-			K3_PADCONF(GPIO_89, MUX_MODE4, (EDGE_NONE | PULL_UP | PAD_DS15)) /* PCIeB_waken */
-			K3_PADCONF(GPIO_90, MUX_MODE4, (EDGE_NONE | PULL_UP | PAD_DS15)) /* PCIeB_clkreqn */
-		>;
-	};
-
-	pcie3_1_grp {
-		pinctrl-single,pins =<
-			K3_PADCONF(GPIO_105, MUX_MODE5, (EDGE_NONE | PULL_UP | PAD_DS15)) /* PCIeD_perstn */
-			K3_PADCONF(GPIO_106, MUX_MODE5, (EDGE_NONE | PULL_UP | PAD_DS15)) /* PCIeD_waken */
-			K3_PADCONF(GPIO_107, MUX_MODE5, (EDGE_NONE | PULL_UP | PAD_DS15)) /* PCIeD_clkreqn */
-		>;
-		power-source = <1800>;
-	};
-
-	pcie4_1_grp {
-		pinctrl-single,pins =<
-			K3_PADCONF(GPIO_76, MUX_MODE5, (EDGE_NONE | PULL_UP | PAD_DS15)) /* PCIeE_perstn */
-			K3_PADCONF(GPIO_77, MUX_MODE5, (EDGE_NONE | PULL_UP | PAD_DS15)) /* PCIeE_waken */
-			K3_PADCONF(GPIO_78, MUX_MODE5, (EDGE_NONE | PULL_UP | PAD_DS15)) /* PCIeE_clkreqn */
-		>;
-	};
-};
-
-&gpio{
-	gpio-ranges = <
-		&pinctrl 86 GPIO_86 1
-	>;
 };
 
 &i2c8 {
@@ -552,92 +502,8 @@
 			};
 		};
 	};
-
-	tda38740_1: tda38740@42 {
-		compatible = "spacemit,tda38740";
-		reg = <0x42>;
-		bus = <8>;
-		u-boot,dm-spl;
-
-		regulators {
-			u-boot,dm-spl;
-
-			tda38740_tdcdc_1: TDCDC_REG1 {
-				regulator-name = "tdcdc1";
-				regulator-min-microvolt = <534000>;
-				regulator-max-microvolt = <1100000>;
-				regulator-boot-on;
-				u-boot,dm-spl;
-				regulator-state-mem {
-					regulator-off-in-suspend;
-				};
-			};
-		};
-	};
-
-	tda38740_2: tda38740@4f {
-		compatible = "spacemit,tda38740";
-		reg = <0x4f>;
-		bus = <8>;
-		u-boot,dm-spl;
-
-		regulators {
-			u-boot,dm-spl;
-
-			tda38740_tdcdc_2: TDCDC_REG2 {
-				regulator-name = "tdcdc2";
-				regulator-min-microvolt = <534000>;
-				regulator-max-microvolt = <1100000>;
-				regulator-boot-on;
-				u-boot,dm-spl;
-				regulator-state-mem {
-					regulator-off-in-suspend;
-				};
-			};
-		};
-	};
 };
 
-&dpu {
+&efuse {
 	status = "okay";
-
-	dpu_out: port {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		dpu_out_dp0: endpoint@1 {
-			reg = <1>;
-			remote-endpoint = <&dp0_in_dpu>;
-		};
-	};
-};
-
-&dp0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_dp0_2>;
-	status = "okay";
-
-	ports {
-		dp0_in: port {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			dp0_in_dpu: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&dpu_out_dp0>;
-			};
-		};
-	};
-};
-
-&mipi_dsi {
-	status = "disabled";
-};
-
-&panel {
-	force-attached = "icnl9911c";
-	dcp-gpios = <&gpio 56 0>;
-	dcn-gpios = <&gpio 57 0>;
-	enable-gpios = <&gpio 61 0>;
-	reset-gpios = <&gpio 63 0>;
-	status = "disabled";
 };

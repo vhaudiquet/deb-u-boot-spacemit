@@ -112,6 +112,20 @@
 #define P1_NON_VOLATILE_REG		(0xab)
 #define P1_NON_VOLATILE_REG_FASTBOOT	(0x1)
 #define P1_NON_VOLATILE_REG_MASK	(0x7)
+#define P1_I2C_BUS_NUM			(8)
+#define P1_I2C_SLAVE_ADDR		(0x41)
+
+/* BROM-related variables */
+#define BROM_DATA_LOAD_START		(0xffe170a8)
+#define BROM_DATA_START			(0xc0878000)
+#define BROM_DATA_END			(0xc0878468)
+#define BROM_BSS_START			(0xc0878468)
+#define BROM_BSS_END			(0xc0879b00)
+#define BROM_SYS_BOOT_DATA		(0xc08784d8)
+#define BROM_USB_BOOT_VALUE		(0x10001200)
+#define BROM_STACK_POINTER		(0xc0880000)
+#define BROM_GLOBAL_POINTER		(0xc0878c10)
+#define BROM_JUMP_POINT			(0xffe00418)
 
 #define USB_BOOT_COMMAND 		"bootm 0x140000000"
 
@@ -198,7 +212,5 @@ const struct k3_nor_boot_target *k3_nor_get_boot_prio(unsigned int *count);
 	"splashimage=" __stringify(CONFIG_FASTBOOT_BUF_ADDR) "\0" \
 	"splashpos=m,m\0" \
 	"splashfile=bianbu.bmp\0"
-
-#define CONFIG_ENV_FLAGS_LIST_STATIC "serial#:sa"
 
 #endif /* __SPACEMIT_K3_CONFIG_H */

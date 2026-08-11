@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * finch board's base device tree configure.
+ *
+ * Copyright (C) 2025 SPACEMIT Micro Limited
+ */
+
+#define FF_UART0
+#define FF_GMAC1
+#define FF_USB
+#define FF_FAN
+#define FF_DP1
+//#define FF_PCIE
+
+#include "k3-firefly-aibox-k3.dtsi"
+
+/ {
+	model = "spacemit AIBOX-K3 board";
+};

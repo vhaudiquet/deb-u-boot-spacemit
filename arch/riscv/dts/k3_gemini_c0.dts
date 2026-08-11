@@ -590,7 +590,3 @@
 	reset-gpios = <&gpio 63 0>;
 	status = "disabled";
 };
-
-&efuse {
-	status = "okay";
-};

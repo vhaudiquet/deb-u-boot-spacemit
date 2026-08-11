@@ -815,6 +815,10 @@ int soc_dp_phy_set_pixel_clk(struct soc_dp_phy *phy, u32 pixel_clk_khz)
 	soc_dp_reg_write_range(phy, SOC_DPTX_ANA_PREPLL_DP_EN, 1);
 	soc_dp_reg_write_range(phy, SOC_DPTX_ANA_PREPLL_HDMI_EN, 0);
 
+	// fix the issue of 371370KHz which is a pixel clock for 2880x1920@60FPS eDP, Rounding it to 372000KHz works.
+	if (pixel_clk_khz == 371370)
+		pixel_clk_khz = 372000;
+
 	ret = soc_dp_calc_pixel_pll(pixel_clk_khz, phy->ref_clk_khz, &pixel_pll_cfg);
 	if (ret)
 		return ret;

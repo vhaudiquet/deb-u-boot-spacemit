@@ -639,13 +639,7 @@ int _write_mtd_partition(struct flash_dev *fdev)
 #ifdef CONFIG_MTD
 	struct mtd_info *mtd;
 	char mtd_ids[36] = {"\0"};
-	char *mtd_parts = NULL;
-
-	mtd_parts = malloc(strlen(fdev->mtd_table) + 32);
-	if (mtd_parts == NULL){
-		pr_err("malloc size fail\n");
-		return -1;
-	}
+	char *mtd_parts = NULL, *mtd_device;
 
 	mtd_probe_devices();
 
@@ -660,16 +654,26 @@ int _write_mtd_partition(struct flash_dev *fdev)
 
 	if (mtd == NULL){
 		pr_err("can not get mtd device");
-		free(mtd_parts);
 		return -1;
 	}
 
 	/*to mtd device, it should write mtd table to env.*/
-	sprintf(mtd_ids, "%s=spi-dev", mtd->name);
-	sprintf(mtd_parts, "spi-dev:%s", fdev->mtd_table);
+	if (NULL == env_get("mtdids")) {
+		sprintf(mtd_ids, "%s=spi-dev", mtd->name);
+		env_set("mtdids", mtd_ids);
+	}
 
-	env_set("mtdids", mtd_ids);
+	// get mtd device name from env "mtdids"
+	mtd_device = strchr(env_get("mtdids"), '=') + 1;
+	mtd_parts = malloc(strlen(fdev->mtd_table) + strlen(mtd_device) + 2);
+	if (mtd_parts == NULL){
+		pr_err("malloc size fail\n");
+		return -1;
+	}
+
+	sprintf(mtd_parts, "%s:%s", mtd_device, fdev->mtd_table);
 	env_set("mtdparts", mtd_parts);
+	free(mtd_parts);
 
 #endif
 	pr_info("parse gpt/mtd table okay");

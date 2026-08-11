@@ -268,7 +268,7 @@ static int __board_pmic_init(const char *name)
 	unsigned char regval;
 	unsigned char regvals[2];
 	const char *s;
-	u32 value, min, max, req_value;
+	u32 value, min, max, sleep_value;
 	const struct pm8xx_buck_desc *buck_desc, *ldo_desc;
 	int offset, ret, sub_offset, len, saddr, i, num_buck, num_ldo, sel;
 
@@ -345,7 +345,7 @@ static int __board_pmic_init(const char *name)
 			continue;
 
 		value = fdtdec_get_uint(gd->fdt_blob, sub_offset, "regulator-init-microvolt", 0);
-		req_value = value;
+		sleep_value = fdtdec_get_uint(gd->fdt_blob, sub_offset, "regulator-suspend-microvolt", 0);
 
 		/* find wich dcdc or ldo */
 		s = fdt_get_name(gd->fdt_blob, sub_offset, &len);
@@ -452,6 +452,17 @@ static int __board_pmic_init(const char *name)
 								i2c_write(saddr, buck_desc[i].vsel_reg, 1, &regval, 1);
 							}
 						}
+
+						/* set sleep voltage */
+						if (sleep_value) {
+							sel = regulator_map_voltage_linear_range(buck_desc + i, sleep_value, sleep_value);
+							if (sel >= 0) {
+								sel <<= ffs(buck_desc[i].vsel_sleep_msk) - 1;
+								i2c_read(saddr, buck_desc[i].vsel_sleep_reg, 1, &regval, 1);
+								regval = (regval & ~buck_desc[i].vsel_sleep_msk) | sel;
+								i2c_write(saddr, buck_desc[i].vsel_sleep_reg, 1, &regval, 1);
+							}
+						}
 						break;
 					}
 				}
@@ -479,6 +490,16 @@ static int __board_pmic_init(const char *name)
 						}
 					}
 
+					/* set sleep voltage */
+					if (sleep_value) {
+						sel = regulator_map_voltage_linear_range(ldo_desc + i, sleep_value, sleep_value);
+						if (sel >= 0) {
+							sel <<= ffs(ldo_desc[i].vsel_sleep_msk) - 1;
+							i2c_read(saddr, ldo_desc[i].vsel_sleep_reg, 1, &regval, 1);
+							regval = (regval & ~ldo_desc[i].vsel_sleep_msk) | sel;
+							i2c_write(saddr, ldo_desc[i].vsel_sleep_reg, 1, &regval, 1);
+						}
+					}
 					break;
 				}
 			}
