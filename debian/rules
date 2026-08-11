@@ -9,7 +9,7 @@ ifneq ($(DEB_HOST_ARCH),$(DEB_BUILD_ARCH))
 export CROSS_COMPILE=riscv64-unknown-linux-gnu-
 endif
 
-# 检查是否在 Git 仓库中，并获取 commit ID
+# Check whether inside a Git repository and get the commit ID
 GIT_INSIDE := $(shell git rev-parse --is-inside-work-tree 2>/dev/null)
 ifeq ($(GIT_INSIDE),true)
 	COMMIT_ID := $(shell git rev-parse --short HEAD)
@@ -25,6 +25,7 @@ override_dh_auto_build:
 
 override_dh_gencontrol:
 	echo "misc:CommitId=${COMMIT_ID}" >> debian/u-boot-spacemit.substvars
+	echo "misc:CommitId=${COMMIT_ID}" >> debian/u-boot-spl-spacemit.substvars
 	dh_gencontrol
 
 override_dh_auto_test-indep:

@@ -1,5 +1,3 @@
 u-boot.itb usr/lib/u-boot/spacemit
-FSBL.bin usr/lib/u-boot/spacemit
-bootinfo*.bin usr/lib/u-boot/spacemit
-env.bin usr/lib/u-boot/spacemit
 tools/logos/bianbu.bmp boot
+debian/spacemit-boot-device.sh usr/share/u-boot-spacemit

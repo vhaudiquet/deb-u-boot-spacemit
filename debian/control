@@ -18,7 +18,6 @@ Build-Depends: bc,
  libncurses-dev,
  libncurses-dev:native,
  libssl-dev:native,
- opensbi (>= 1.0-2~) [riscv64],
  uuid-dev,
 Rules-Requires-Root: no
 Standards-Version: 4.6.2
@@ -27,14 +26,38 @@ Vcs-Browser: https://git.spacemit.com/buildroot-k3/uboot
 Vcs-Git: https://git.spacemit.com/buildroot-k3/uboot.git
 XBS-Commit-Id: ${misc:CommitId}
 
-Package: u-boot-spacemit
+Package: u-boot-spl-spacemit
 Architecture: all
 Multi-Arch: foreign
 Depends: ${misc:Depends}
-Built-Using: ${u-boot-spacemit:Built-Using}
-Description: A boot loader for SpacemiT systems
+Recommends: opensbi-spacemit
+Description: SPL (FSBL) bootloader for SpacemiT systems
  Das U-Boot is a cross-platform bootloader for embedded systems,
  used as the default boot loader by several board vendors.  It is
  intended to be easy to port and to debug, and runs on many
  supported architectures, including PPC, ARM, MIPS, x86, m68k,
  NIOS, and Microblaze.
+ .
+ This package contains the First Stage Boot Loader (FSBL) for the
+ SpacemiT K3 platform: the U-Boot SPL wrapped with the SpacemiT
+ image header, the bootinfo blobs and the default U-Boot
+ environment. These are written to the boot media during package
+ installation.
+
+Package: u-boot-spacemit
+Architecture: all
+Multi-Arch: foreign
+Depends: ${misc:Depends}
+Built-Using: ${u-boot-spacemit:Built-Using}
+Description: U-Boot proper for SpacemiT systems
+ Das U-Boot is a cross-platform bootloader for embedded systems,
+ used as the default boot loader by several board vendors.  It is
+ intended to be easy to port and to debug, and runs on many
+ supported architectures, including PPC, ARM, MIPS, x86, m68k,
+ NIOS, and Microblaze.
+ .
+ This package contains U-Boot proper for the SpacemiT K3 platform,
+ packaged as a FIT image (u-boot.itb) bundling U-Boot and the
+ device trees. It is fully independent of u-boot-spl-spacemit and
+ can be installed on its own; only the u-boot.itb payload is
+ written to the boot media by its postinst.

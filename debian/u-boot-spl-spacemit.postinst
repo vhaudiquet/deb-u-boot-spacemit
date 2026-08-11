@@ -1,0 +1,35 @@
+#!/bin/sh
+set -e
+
+# Post-installation hook for the SpacemiT K3 SPL (FSBL) package.
+#
+# This only flashes the SPL chain (bootinfo, FSBL and the U-Boot
+# environment) to the detected boot medium. U-Boot proper (u-boot.itb)
+# is handled by the u-boot-spacemit package.
+
+case "$1" in
+configure)
+    # Detect the boot medium and the write offsets. The helper exits
+    # this script when installation must be skipped or cannot be done.
+    . /usr/share/u-boot-spl-spacemit/spacemit-boot-device.sh
+
+    # Files that must be present before touching the boot media.
+    files="${BIN_DIR}/${BOOTINFO_FILE} ${BIN_DIR}/FSBL.bin ${BIN_DIR}/env.bin $BOOTINFO $FSBL $ENV"
+    for file in $files; do
+        if [ ! -e "$file" ]; then
+            # Exit if any required file is missing.
+            echo "Missing $file"
+            exit 1
+        fi
+    done
+
+    # All checks passed, write the SPL chain to the boot media.
+    set -x
+    dd if=${BIN_DIR}/${BOOTINFO_FILE} of=$BOOTINFO seek=$BOOTINFO_SEEK bs=1 && sync
+    dd if=${BIN_DIR}/FSBL.bin of=$FSBL seek=$FSBL_SEEK bs=1 && sync
+    dd if=${BIN_DIR}/env.bin of=$ENV seek=$ENV_SEEK bs=1 && sync
+    set +x
+    ;;
+esac
+
+exit 0

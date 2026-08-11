@@ -1,3 +1,30 @@
+u-boot-spacemit (1.0.5-1) resolute; urgency=medium
+
+  * Split the single binary package into two independent packages:
+    - u-boot-spl-spacemit: the SPL/FSBL chain (FSBL.bin, bootinfo blobs
+      and the default U-Boot environment);
+    - u-boot-spacemit: U-Boot proper packaged as a FIT image
+      (u-boot.itb) bundling U-Boot and the device trees.
+  * Factor the boot-device detection logic out of the postinst into a
+    shared helper (spacemit-boot-device.sh) shipped by both packages at
+    package-private paths. Each postinst sources its own copy and writes
+    only the components it owns: the SPL package flashes bootinfo, FSBL
+    and the environment; the proper package flashes u-boot.itb (still
+    skipped under UEFI, as before).
+  * Translate all packaging comments to English (rules, postinst,
+    helper).
+  * Broaden the SpacemiT K3/X100 platform detection to accept any of:
+    the "Spacemit(R) X100" model string in /proc/cpuinfo (older
+    kernels), the "spacemit,x100" uarch line in /proc/cpuinfo (newer
+    kernels), or "spacemit,k3" in /proc/device-tree/compatible.
+  * Drop opensbi Build-Depends: the K3 build never consumes OpenSBI 
+    (CONFIG_BINMAN is not set and the FIT ITS bundles only 
+    u-boot-nodtb.bin with the device trees). OpenSBI is a separate
+    runtime payload loaded by SPL from its own partition, so add
+    opensbi-spacemit as a Recommends on u-boot-spl-spacemit instead.
+
+ -- Valentin Haudiquet <valentin.haudiquet@canonical.com>  Fri, 24 Jul 2026 11:25:34 +0200
+
 u-boot-spacemit (1.0.5) resolute; urgency=medium
 
   * Rebase onto the upstream u-boot-spacemit 1.0.5 snapshot.
