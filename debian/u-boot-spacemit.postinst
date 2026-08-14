@@ -30,6 +30,11 @@ configure)
     done
 
     # All checks passed, write u-boot proper to the boot media.
+    if [ ! -b "$UBOOT" ]; then
+        echo "Error: $UBOOT block device not found (mtdblock not available in this kernel?)"
+        exit 0
+    fi
+
     set -x
     dd if=${BIN_DIR}/u-boot.itb of=$UBOOT seek=$UBOOT_SEEK bs=1K && sync
     set +x

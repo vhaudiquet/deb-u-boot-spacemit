@@ -66,6 +66,11 @@ if running_in_chroot; then
     exit 0
 fi
 
+# Ensure mtdblock is loaded.  It is built-in on SpacemiT kernels but
+# ships as a module on mainline kernels (e.g. Ubuntu), where /dev/mtdblock*
+# won't exist until the module is loaded.
+modprobe mtdblock 2>/dev/null || true
+
 BOOT_MODE=""
 for x in $(cat /proc/cmdline); do
     case $x in

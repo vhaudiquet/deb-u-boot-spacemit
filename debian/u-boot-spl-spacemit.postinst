@@ -24,6 +24,13 @@ configure)
     done
 
     # All checks passed, write the SPL chain to the boot media.
+    for dev in "$BOOTINFO" "$FSBL" "$ENV"; do
+        if [ ! -b "$dev" ]; then
+            echo "Error: $dev block device not found (mtdblock not available in this kernel?)"
+            exit 0
+        fi
+    done
+
     set -x
     dd if=${BIN_DIR}/${BOOTINFO_FILE} of=$BOOTINFO seek=$BOOTINFO_SEEK bs=1 && sync
     dd if=${BIN_DIR}/FSBL.bin of=$FSBL seek=$FSBL_SEEK bs=1 && sync

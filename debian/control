@@ -29,7 +29,8 @@ XBS-Commit-Id: ${misc:CommitId}
 Package: u-boot-spl-spacemit
 Architecture: all
 Multi-Arch: foreign
-Depends: ${misc:Depends}
+Depends: ${misc:Depends},
+ kmod,
 Recommends: opensbi-spacemit
 Description: SPL (FSBL) bootloader for SpacemiT systems
  Das U-Boot is a cross-platform bootloader for embedded systems,
@@ -47,7 +48,8 @@ Description: SPL (FSBL) bootloader for SpacemiT systems
 Package: u-boot-spacemit
 Architecture: all
 Multi-Arch: foreign
-Depends: ${misc:Depends}
+Depends: ${misc:Depends},
+ kmod,
 Built-Using: ${u-boot-spacemit:Built-Using}
 Description: U-Boot proper for SpacemiT systems
  Das U-Boot is a cross-platform bootloader for embedded systems,
