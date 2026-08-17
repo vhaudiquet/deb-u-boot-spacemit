@@ -1,3 +1,9 @@
+u-boot-spacemit (1.0.5-3) resolute; urgency=medium
+
+  * d/control: scope Architecture to riscv64
+
+ -- Valentin Haudiquet <valentin.haudiquet@canonical.com>  Mon, 17 Aug 2026 17:25:55 +0200
+
 u-boot-spacemit (1.0.5-2) resolute; urgency=medium
 
   * d/s/postinst: load mtdblock kernel module if not present
