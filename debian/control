@@ -27,7 +27,7 @@ Vcs-Git: https://git.spacemit.com/buildroot-k3/uboot.git
 XBS-Commit-Id: ${misc:CommitId}
 
 Package: u-boot-spl-spacemit
-Architecture: all
+Architecture: riscv64
 Multi-Arch: foreign
 Depends: ${misc:Depends},
  kmod,
@@ -46,7 +46,7 @@ Description: SPL (FSBL) bootloader for SpacemiT systems
  installation.
 
 Package: u-boot-spacemit
-Architecture: all
+Architecture: riscv64
 Multi-Arch: foreign
 Depends: ${misc:Depends},
  kmod,
