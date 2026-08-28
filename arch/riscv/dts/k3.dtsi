@@ -254,7 +254,8 @@
 
 		uart0: uart@d4017000 {
 			u-boot,dm-spl;
-			compatible = "ns16550";
+			compatible = "spacemit,k1-uart", "intel,xscale-uart",
+				     "ns16550";
 			reg = <0x00000000 0xD4017000 0x00000000 0x00000100>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
