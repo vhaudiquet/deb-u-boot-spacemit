@@ -1,3 +1,9 @@
+u-boot-spacemit (1.0.5-4) resolute; urgency=medium
+
+  * add uart compatible strings for k3 opensbi logs
+
+ -- Valentin Haudiquet <valentin.haudiquet@canonical.com>  Fri, 28 Aug 2026 21:40:36 +0200
+
 u-boot-spacemit (1.0.5-3) resolute; urgency=medium
 
   * d/control: scope Architecture to riscv64
