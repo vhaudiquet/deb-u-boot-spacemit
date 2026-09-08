@@ -2,9 +2,14 @@ u-boot-spacemit (1.0.5-5) resolute; urgency=medium
 
   * d/postinst: drop u-boot-spl-spacemit postinst, flashing owned by spacemit-firmware
   * fastboot: verify flashed images with crc32 instead of an additive sum
+  * Read the board product name from the TLV EEPROM in SPL and append
+    the board-specific compatible to the device tree handed to U-Boot
+    (e.g. "spacemit,k3-pico-itx", "spacemit,k3-com260-ifx" after the
+    generic "spacemit,k3"), matching the compatible values used by the
+    upstream kernel DTS. Boards that already carry a specific
+    compatible (e.g. "deepcomputing,fml13v05") are left untouched.
 
  -- Valentin Haudiquet <valentin.haudiquet@canonical.com>  Thu, 17 Sep 2026 16:17:15 +0200
-
 u-boot-spacemit (1.0.5-4) resolute; urgency=medium
 
   * add uart compatible strings for k3 opensbi logs
