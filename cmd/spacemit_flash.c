@@ -837,8 +837,7 @@ int load_and_flash_file(struct cmd_tbl *cmdtp, struct flash_dev *fdev, char *fil
 
 		flash_pre_process(partition, load_addr);
 
-		// compare_value = crc32_wd(compare_value, (const uchar *)load_addr, download_bytes, CHUNKSZ_CRC32);
-		compare_value += checksum64(load_addr, download_bytes);
+		compare_value = crc32_wd(compare_value, (const uchar *)load_addr, download_bytes, CHUNKSZ_CRC32);
 		info.size = (download_bytes + (info.blksz - 1)) / info.blksz;
 		printf("write storage at block: 0x%lx, size: %lx\n", info.start, info.size);
 

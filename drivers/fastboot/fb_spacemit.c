@@ -1322,8 +1322,7 @@ int compare_blk_image_val(struct blk_desc *dev_desc, u64 compare_val, lbaint_t p
 			pr_err("mmc read blk not equal it should be\n");
 			return -1;
 		}
-		// calculate = crc32_wd(crc, (const uchar *)load_addr, download_bytes, CHUNKSZ_CRC32);
-		calculate += checksum64(load_addr, download_bytes);
+		calculate = crc32_wd(calculate, (const uchar *)load_addr, download_bytes, CHUNKSZ_CRC32);
 
 		part_start_cnt += blk_size;
 		byte_remain -= download_bytes;
@@ -1362,8 +1361,7 @@ int compare_mtd_image_val(struct mtd_info *mtd, u64 compare_val, uint64_t image_
 			return -1;
 		}
 
-		// calculate = crc32_wd(calculate, (const uchar *)load_addr, download_bytes, CHUNKSZ_CRC32);
-		calculate += checksum64(load_addr, download_bytes);
+		calculate = crc32_wd(calculate, (const uchar *)load_addr, download_bytes, CHUNKSZ_CRC32);
 		hdr_off += download_bytes;
 		byte_remain -= download_bytes;
 	}
@@ -1412,7 +1410,6 @@ void fastboot_oem_flash_bootinfo(const char *cmd, void *download_buffer,
 	boot_info->spl_size_limit = BOOT_INFO_EMMC_LIMIT;
 	strcpy(boot_info->flash_type, "eMMC");
 	boot_info->crc32 = crc32_wd(0, (const uchar *)boot_info, 0x40, CHUNKSZ_CRC32);
-
 	/*flash bootinfo*/
 	pr_info("bootinfo:%p, boot_info->crc32:%x, sizeof(boot_info):%lx, download_buffer:%p\n", boot_info, boot_info->crc32, sizeof(boot_info), download_buffer);
 
