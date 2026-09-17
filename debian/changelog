@@ -1,3 +1,10 @@
+u-boot-spacemit (1.0.5-5) resolute; urgency=medium
+
+  * d/postinst: drop u-boot-spl-spacemit postinst, flashing owned by spacemit-firmware
+  * fastboot: verify flashed images with crc32 instead of an additive sum
+
+ -- Valentin Haudiquet <valentin.haudiquet@canonical.com>  Thu, 17 Sep 2026 16:17:15 +0200
+
 u-boot-spacemit (1.0.5-4) resolute; urgency=medium
 
   * add uart compatible strings for k3 opensbi logs
