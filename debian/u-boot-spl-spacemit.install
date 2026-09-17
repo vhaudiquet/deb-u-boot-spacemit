@@ -1,4 +1,3 @@
 FSBL.bin usr/lib/u-boot/spacemit
 bootinfo*.bin usr/lib/u-boot/spacemit
 env.bin usr/lib/u-boot/spacemit
-debian/spacemit-boot-device.sh usr/share/u-boot-spl-spacemit
