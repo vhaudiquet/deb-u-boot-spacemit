@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: GPL-2.0+
+#
+# Copyright (C) 2026 Spacemit
+
+menu "Spacemit K3 DDR controllers"
+	depends on TARGET_SPACEMIT_K3 && K3_BOARD_ASIC
+
+config K3_DDR_LPDDR5
+	bool "k3 lpddr5"
+	default y
+	help
+	  Select the K3 LPDDR5 driver support. Disabling this removes the
+	  LPDDR5 init, pre-training and quickboot tables from SPL.
+
+	  The DDR part is picked at runtime from the part number in TLV,
+	  so disable this only on boards that never carry an LPDDR5 part.
+
+config K3_DDR_LPDDR4X
+	bool "k3 lpddr4x"
+	default y
+	help
+	  Select the K3 LPDDR4X driver support. Disabling this removes the
+	  LPDDR4X init, pre-training and quickboot tables from SPL.
+
+	  The DDR part is picked at runtime from the part number in TLV,
+	  so disable this only on boards that never carry an LPDDR4X part.
+
+endmenu

@@ -46,6 +46,8 @@
 
 #define HUB_SHORT_RESET_TIME	20
 #define HUB_LONG_RESET_TIME	200
+/* TRSTRCY = 10 ms; plus some extra */
+#define HUB_RESET_RECOVERY_TIME	(10 + 5)
 
 #define HUB_DEBOUNCE_TIMEOUT	1000
 
@@ -350,6 +352,23 @@ static int usb_hub_port_reset(struct usb_device *dev, int port,
 	}
 
 	usb_clear_port_feature(dev, port + 1, USB_PORT_FEAT_C_RESET);
+
+	/*
+	 * USB 2.0 spec 7.1.7.5: a device needs TRSTRCY (10ms) after reset is
+	 * de-asserted before it must answer requests. Without this recovery
+	 * delay the following SET_ADDRESS fails on low speed devices behind
+	 * an external hub: the hub has not finished processing the reset
+	 * signal when SET_ADDRESS arrives, so the reset is effectively lost
+	 * and the device stays in Powered state. The xHC then reports a USB
+	 * Transaction Error (completion code 4) for the Address Device
+	 * command. This matches the bus trace, where no reset is seen on the
+	 * hub downstream port.
+	 *
+	 * Linux uses 10 + 40ms in hub_port_reset(); 10 + 5ms is measured to
+	 * be enough here.
+	 */
+	mdelay(HUB_RESET_RECOVERY_TIME);
+
 	*portstat = portstatus;
 	return 0;
 }

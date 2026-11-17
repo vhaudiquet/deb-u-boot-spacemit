@@ -20,8 +20,12 @@ __section(".data") static ddr_part_info* part_info;
 
 static const ddr_config_t ddr_default_io_para[] = {
 	// type,              WDS     RX ODT   DQODT CAODT NTODT  SOCODT PDDS  2DTraining
+#ifdef CONFIG_K3_DDR_LPDDR5
 	{ DDR_TYPE_LPDDR5, PHY_R_30, PHY_R_60, R_60, R_80, R_OFF, R_OFF, R_40, 1 },
-	{ DDR_TYPE_LPDDR4X, PHY_R_40, PHY_R_40, R_60, R_40, R_OFF, R_40, R_40, 1 }
+#endif
+#ifdef CONFIG_K3_DDR_LPDDR4X
+	{ DDR_TYPE_LPDDR4X, PHY_R_40, PHY_R_40, R_60, R_40, R_OFF, R_40, R_40, 1 },
+#endif
 };
 
 ddr_phy_reg_config io_override_table[MAX_MODIFIED_IO_PARA_ITEMS];
@@ -34,7 +38,7 @@ const ddr_config_t* get_ddr_default_io_para(ddr_part_type type)
 		}
 	}
 
-	pr_err("NOT supported DDR type %d, using LPDDR5 as default\n", type);
+	pr_err("NOT supported DDR type %d, using default io para\n", type);
 	return &ddr_default_io_para[0];
 }
 
@@ -122,13 +126,17 @@ ERR_HANDLE:
 }
 
 const ddr_part_info ddr_parts_info[] = {
-	{ "MT62F1G32D2DS", 0x0FD38DD9, DDR_TYPE_LPDDR5, 1, 0, 4096, CONFIG_DDR_DATARATE },
-	{ "MT62F2G32D4DS", 0x85D1F688, DDR_TYPE_LPDDR5, 2, 0, 8192, CONFIG_DDR_DATARATE },
-	{ "RS3G32LG5D8FDB", 0xF74C6BFC, DDR_TYPE_LPDDR5, 2, 1, 12288, CONFIG_DDR_DATARATE },
-	{ "MT62F4G32D8DV", 0x3ACEF2E4, DDR_TYPE_LPDDR5, 2, 1, 16384, CONFIG_DDR_DATARATE },
-	{ "MT53E1G32D2FW", 0x75251AB8, DDR_TYPE_LPDDR4X, 1, 0, 4096, 4266 },
-	{ "MT53E2G32D4DE", 0x3EA87223, DDR_TYPE_LPDDR4X, 2, 0, 8192, 4266 },
-	{ "MT53E4G32D8CY", 0xAA9D4848, DDR_TYPE_LPDDR4X, 2, 1, 16384, 4266 },
+#ifdef CONFIG_K3_DDR_LPDDR5
+	{ "MT62F1G32D2DS", 0x0FD38DD9, DDR_TYPE_LPDDR5, 1, 0, 4096, CONFIG_LPDDR5_DATARATE },
+	{ "MT62F2G32D4DS", 0x85D1F688, DDR_TYPE_LPDDR5, 2, 0, 8192, CONFIG_LPDDR5_DATARATE },
+	{ "RS3G32LG5D8FDB", 0xF74C6BFC, DDR_TYPE_LPDDR5, 2, 1, 12288, CONFIG_LPDDR5_DATARATE },
+	{ "MT62F4G32D8DV", 0x3ACEF2E4, DDR_TYPE_LPDDR5, 2, 1, 16384, CONFIG_LPDDR5_DATARATE },
+#endif
+#ifdef CONFIG_K3_DDR_LPDDR4X
+	{ "MT53E1G32D2FW", 0x75251AB8, DDR_TYPE_LPDDR4X, 1, 0, 4096, CONFIG_LPDDR4X_DATARATE },
+	{ "MT53E2G32D4DE", 0x3EA87223, DDR_TYPE_LPDDR4X, 2, 0, 8192, CONFIG_LPDDR4X_DATARATE },
+	{ "MT53E4G32D8CY", 0xAA9D4848, DDR_TYPE_LPDDR4X, 2, 1, 16384, CONFIG_LPDDR4X_DATARATE },
+#endif
 };
 
 static ddr_part_info* find_ddr_info(const char *part_number)
@@ -190,17 +198,21 @@ static int spacemit_ddr_probe(struct udevice *dev)
 	ddr_part_number[ret] = '\0';
 
 	part_info = find_ddr_info((const char*)ddr_part_number);
-	printf("DDR Part Number: %s, Size: %dMB, Data Rate: %dMT/s\n",
-		part_info->part_number, part_info->size_mb, part_info->data_rate_mtps);
 	if ((DDR_TYPE_LPDDR5 != part_info->type) && (DDR_TYPE_LPDDR4X != part_info->type)) {
 		pr_err("unsupported ddr type %d\n", part_info->type);
 		return 1;
 	}
+	printf("%s total size: %d GB, data rate: %d MT/s\n",
+		DDR_TYPE_LPDDR5 == part_info->type ? "LPDDR5" : "LPDDR4X",
+		part_info->size_mb * 2 / 1024, part_info->data_rate_mtps
+	);
 
 	/* DDR training info may save and restore from differents space:
-	1. write to private partition during uboot stage, restore it during spl stage
-	2. update to SPL rodata space and write to FSBL partition during fastboot flash,
-		load with spl during bootrom.
+	1. when enabled CONFIG_DDR_TRAINING_SAVE_RESTORE, write to private partition during
+	   uboot stage, restore it during spl stage
+	2. when enabled CONFIG_DDR_TRAINING_UPDATE_FSBL, update to SPL rodata space(training
+	   firmware of the other ddr type) and write to FSBL partition during fastboot flash,
+	   load with spl during bootrom.
 	*/
 	ddr_info = (struct ddr_info_t*)DDR_TRAINING_INFO_BUFF;
 	if ((DDR_TRAINING_INFO_MAGIC == ddr_info->magic)
@@ -211,12 +223,20 @@ static int spacemit_ddr_probe(struct udevice *dev)
 			== crc32(0, (const uint8_t*)&ddr_info->chipid, sizeof(struct ddr_info_t) - 8))) {
 		ddr_mode = DDR_QUICKBOOT_MODE;
 	} else {
+		/*
+		When both lpddr5 and lpddr4x are enabled, there is NOT enough ram space
+		for save training results, training results are staged over the compressed
+		firmware of the OTHER generation, which is dead for this boot.
+		When only single type of DDR is enabled, NO need to compresse the training
+		firmware, training results are saved at DDR_TRAINING_INFO_BUFF.
+		*/
+#if defined(CONFIG_K3_DDR_LPDDR5) && defined(CONFIG_K3_DDR_LPDDR4X)
 		if (DDR_TYPE_LPDDR5 == part_info->type) {
 			ddr_info = (struct ddr_info_t*)lp4x_training_fw;
 		} else {
 			ddr_info = (struct ddr_info_t*)lp5_training_fw;
 		}
-
+#endif
 		if ((DDR_TRAINING_INFO_MAGIC == ddr_info->magic)
 			&& (ddr_info->type == part_info->type)
 			&& (ddr_info->cs_num == part_info->ranks)
@@ -225,9 +245,6 @@ static int spacemit_ddr_probe(struct udevice *dev)
 				== crc32(0, (const uint8_t*)&ddr_info->chipid, sizeof(struct ddr_info_t) - 8))) {
 			ddr_mode = DDR_QUICKBOOT_MODE;
 		} else {
-			/* reuse memory space of training firmware(compressed) to save training results
-			Use it only after firmware has been decompressed to DDR_TRAINING_FIRMWARE_TABLE_ADDR
-			*/
 			ddr_mode = DDR_TRAINING_MODE;
 		}
 	}

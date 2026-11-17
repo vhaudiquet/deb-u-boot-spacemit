@@ -1,10 +1,50 @@
 #!/bin/bash -e
 
 PACKAGE_SRC_NAME="u-boot-spacemit"
+DEFCONFIG="k3_defconfig"
+CHIP="k3"
 CLEAN_CMD='make distclean'
-BUILD_CMD='make k3_defconfig && make -j${JOBS:-$(nproc)}'
-BUILD_DEB_CMD='GIT_VERSION=$(git rev-parse --short HEAD 2>/dev/null); VERSION=$(if [ -n "$GIT_VERSION" ]; then echo "0~g$GIT_VERSION"; else echo "0~$(date +%Y%m%d%H%M%S)"; fi); rm -rf debian/changelog; dch --create --package '"$PACKAGE_SRC_NAME"' -v ${VERSION} --distribution resolute-porting --force-distribution "Bianbu Test"; DEB_BUILD_OPTIONS=nocheck dpkg-buildpackage -us -uc -b -ariscv64 -d -j${JOBS:-$(nproc)}'
+BUILD_CMD="make $DEFCONFIG && make -j\${JOBS:-\$(nproc)}"
+# KEY_DIR is the master switch.
+#  set  : enable CONFIG_SPL_FIT_SIGNATURE. && CONFIG_RSA_VERIFY.
+#  unset: strip CONFIG_SPL_FIT_SIGNATURE && CONFIG_RSA_VERIFY.
+#         (default: FIT signing is NOT on unless explicitly enabled).
+BUILD_DEB_CMD="
+DEFCFG=configs/$DEFCONFIG
+DTSI_DIR=arch/riscv/dts/key
+REGEN=scripts/regen_pubkey_dtsi.sh
+"'
+if [ -n "$KEY_DIR" ]; then
+    echo "[sign] KEY_DIR=$KEY_DIR -> building SIGNED u-boot deb"
+    grep -q "^CONFIG_SPL_FIT_SIGNATURE=y" "$DEFCFG" || echo "CONFIG_SPL_FIT_SIGNATURE=y" >> "$DEFCFG"
+    grep -q "^CONFIG_RSA_VERIFY=y" "$DEFCFG" || echo "CONFIG_RSA_VERIFY=y" >> "$DEFCFG"
+    if [ -f "$KEY_DIR/kernel_key_prv.key" ] && [ -f "$KEY_DIR/kernel_key_prv.crt" ]; then
+        sh "$REGEN" kernel_key_prv "$KEY_DIR" "$DTSI_DIR/kernel_key_pub.dtsi" || \
+        { echo "[sign][ERROR] regen kernel_key_pub.dtsi failed" >&2; exit 1; }
+    else
+        echo "[sign][WARN] no kernel_key_prv.{key,crt} in KEY_DIR; kernel_key_pub.dtsi left as-is" >&2
+    fi
+    if [ -f "$KEY_DIR/uboot_key_prv.key" ] && [ -f "$KEY_DIR/uboot_key_prv.crt" ]; then
+        sh "$REGEN" uboot_key_prv "$KEY_DIR" "$DTSI_DIR/uboot_key_pub.dtsi" || \
+        { echo "[sign][ERROR] regen uboot_key_pub.dtsi failed" >&2; exit 1; }
+    else
+        echo "[sign][WARN] no uboot_key_prv.{key,crt} in KEY_DIR; uboot_key_pub.dtsi left as-is" >&2
+    fi
+else
+    sed -i "/^CONFIG_SPL_FIT_SIGNATURE=y/d; /^CONFIG_RSA_VERIFY=y/d" "$DEFCFG"
+fi
 
+GIT_VERSION=$(git rev-parse --short HEAD 2>/dev/null);
+VERSION=$(if [ -n "$GIT_VERSION" ]; then echo "0~g$GIT_VERSION"; else echo "0~$(date +%Y%m%d%H%M%S)"; fi);
+rm -rf debian/changelog;
+dch --create --package '"$PACKAGE_SRC_NAME"' -v ${VERSION} --distribution resolute-porting --force-distribution "Bianbu Test";
+DEB_BUILD_OPTIONS=nocheck dpkg-buildpackage -us -uc -b -ariscv64 -d -j${JOBS:-$(nproc)}
+
+if [ -n "$KEY_DIR" ]; then
+    echo "[sign] ===== mkimage -l u-boot.itb (signature evidence) ====="
+    mkimage -l u-boot.itb 2>/dev/null || true
+fi
+'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 SOURCE_PARENT_DIR="$(cd "$SOURCE_DIR/.." && pwd)"
@@ -208,6 +248,20 @@ CONTAINER_ENV=("-e" "ARCH=riscv" "-e" "CROSS_COMPILE=$CROSS_COMPILE" "-e" "PATH=
 if [[ -n "$JOBS" ]]; then
     CONTAINER_ENV+=("-e" "JOBS=$JOBS")
 fi
+if [[ -n "$KEY_DIR" && ( -z "$DIRECT_BUILD" || "$DIRECT_BUILD" == "0" ) ]]; then
+    # Container mode only: remap host KEY_DIR to its /workspace path + bind-mount.
+    # DIRECT_BUILD (local) has no container; run_command exports KEY_DIR (host
+    # path) directly, so skip this block to avoid a bogus /workspace path in env.
+    KEY_DIR_ABS="$(cd "$KEY_DIR" 2>/dev/null && pwd || echo "$KEY_DIR")"
+    case "$KEY_DIR_ABS" in
+        "$SOURCE_PARENT_DIR"/*)
+            CONTAINER_KEY_DIR="/workspace/${KEY_DIR_ABS#$SOURCE_PARENT_DIR/}" ;;
+        *)
+            CONTAINER_KEY_DIR="$KEY_DIR_ABS"
+            VOLUME_MOUNTS+=("-v" "$KEY_DIR_ABS:$KEY_DIR_ABS:ro") ;;
+    esac
+    CONTAINER_ENV+=("-e" "KEY_DIR=$CONTAINER_KEY_DIR")
+fi
 
 # Function to create user permission files for container
 create_user_files() {
@@ -283,6 +337,9 @@ run_command() {
         export CROSS_COMPILE=riscv64-unknown-linux-gnu-
         if [[ -n "$JOBS" ]]; then
             export JOBS
+        fi
+        if [[ -n "$KEY_DIR" ]]; then
+            export KEY_DIR
         fi
         bash -c "$cmd"
     else

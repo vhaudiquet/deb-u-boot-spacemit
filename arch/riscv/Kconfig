@@ -446,6 +446,25 @@ endmenu
 
 config RISCV_OPTEE_SUPPORT
 	bool "Enable OP-TEE related DTS nodes for RISC-V"
+	depends on OF_LIBFDT && OF_BOARD_SETUP
 	default n
+	help
+	  Enable OP-TEE support for RISC-V: include the OP-TEE/domain nodes
+	  (k3-optee.dtsi) in DTBs and build the k3-optee FDT fixup that copies
+	  the OP-TEE mailbox/domain nodes into the kernel FDT.
+
+config SPACEMIT_SECURE_BOARD
+	bool "Build the board in secure form (OP-TEE boot chain)"
+	depends on TARGET_SPACEMIT_K3
+	depends on OF_LIBFDT && OF_BOARD_SETUP
+	select RISCV_OPTEE_SUPPORT
+	default n
+	help
+	  Build the Spacemit board as a secure variant: SPL loads OP-TEE
+	  (dedicated optee partition) before U-Boot, fastboot flashes the
+	  optee partition, and the secure MTD/NOR layout is used. Selecting
+	  this automatically enables CONFIG_RISCV_OPTEE_SUPPORT for the
+	  OP-TEE DTS/fixup parts. This is orthogonal to FIT image signing
+	  (CONFIG_FIT_SIGNATURE). Non-secure builds skip all OP-TEE logic.
 
 endmenu

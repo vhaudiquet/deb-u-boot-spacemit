@@ -127,8 +127,6 @@
 #define BROM_GLOBAL_POINTER		(0xc0878c10)
 #define BROM_JUMP_POINT			(0xffe00418)
 
-#define USB_BOOT_COMMAND 		"bootm 0x140000000"
-
 #define NOR_BOOT_PRIORITY_NODE		"/nor-boot-priority-helper"
 
 #ifndef __ASSEMBLY__
@@ -195,6 +193,16 @@ const struct k3_nor_boot_target *k3_nor_get_boot_prio(unsigned int *count);
 /* ****************************************************************************************
  * Environment
  * ***************************************************************************************/
+/* OP-TEE env is only meaningful on a secure board build; the empty expansion
+ * keeps the non-secure env free of optee entries (a #ifdef cannot sit inside
+ * the backslash-continued CONFIG_EXTRA_ENV_SETTINGS body). */
+#ifdef CONFIG_SPACEMIT_SECURE_BOARD
+#define K3_EXTRA_ENV_OPTEE \
+	"extra_optee_partition=optee\0"
+#else
+#define K3_EXTRA_ENV_OPTEE
+#endif
+
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"kernel_comp_addr_r=" __stringify(CONFIG_SYS_LOAD_ADDR) "\0" \
 	"kernel_comp_size=" __stringify(CONFIG_FASTBOOT_BUF_SIZE) "\0" \
@@ -206,6 +214,7 @@ const struct k3_nor_boot_target *k3_nor_get_boot_prio(unsigned int *count);
 	"uboot_itb_path=u-boot.itb\0" \
 	"extra_esos_partition=esos\0" \
 	"extra_uboot_partition=uboot\0" \
+	K3_EXTRA_ENV_OPTEE \
 	"opensbi_offset=0x700000\0" \
 	"esos_offset=0x400000\0" \
 	"uboot_offset=0x800000\0" \

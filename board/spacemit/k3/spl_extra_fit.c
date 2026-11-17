@@ -765,7 +765,15 @@ int board_load_extra_fits(struct spl_image_info *spl_image, ulong *uboot_entry)
 	u32 spl_boot_list[2] = { 0 };
 	int load_esos_res = -1, load_uboot_res = -1;
 	ulong esos_off = 0, uboot_off = 0;
-
+#ifdef CONFIG_SPACEMIT_SECURE_BOARD
+	int load_optee_res = -1;
+	ulong optee_off = 0;
+	/* Set on boot paths that load OP-TEE (MMC/MTD). Secure builds must
+	 * abort if OP-TEE is missing there; paths that never load it (UFS,
+	 * unknown boot device) keep the non-secure success semantics.
+	 */
+	bool optee_mandatory = false;
+#endif
 	board_boot_order(spl_boot_list);
 
 	/*
@@ -777,6 +785,9 @@ int board_load_extra_fits(struct spl_image_info *spl_image, ulong *uboot_entry)
 
 	esos_off = spl_extra_env_offset("esos_offset");
 	uboot_off = spl_extra_env_offset("uboot_offset");
+#ifdef CONFIG_SPACEMIT_SECURE_BOARD
+	optee_off = spl_extra_env_offset("optee_offset");
+#endif
 
 	switch (spl_boot_list[0]) {
 #ifdef CONFIG_SPL_MMC
@@ -811,19 +822,45 @@ int board_load_extra_fits(struct spl_image_info *spl_image, ulong *uboot_entry)
 				esos_itb_path = "esos.itb";
 			}
 
-			/* load firmware from bootloader file system, MUST load uboot at the last */
-			if ((0 == load_image_from_mmc_blfs(&image, esos_itb_path)) &&
-				(0 == load_image_from_mmc_blfs(&image, uboot_itb_path))) {
-				load_esos_res = 0;
-				load_uboot_res = 0;
+			/* load firmware from bootloader file system, MUST load uboot at the last.
+			 * NOTE: optee is loaded BEFORE uboot because load_image_from_mmc_blfs()
+			 * uses spl_get_load_buffer() (= CONFIG_SYS_TEXT_BASE) as the FIT read
+			 * buffer, which overlaps the uboot load address (0x102000000). Loading
+			 * optee after uboot would clobber the just-loaded uboot image.
+			 */
+			if (0 == load_image_from_mmc_blfs(&image, esos_itb_path)) {
+#ifdef CONFIG_SPACEMIT_SECURE_BOARD
+				/* Load optee BEFORE uboot (mandatory on secure builds):
+				 * env optee_itb_path -> optee.itb. Missing/failed load must
+				 * abort boot (enforced by the final check via optee_mandatory).
+				 */
+				optee_mandatory = true;
+				{
+					const char *optee_itb_path = env_get("optee_itb_path");
+					if (!optee_itb_path)
+						optee_itb_path = "optee.itb";
+					if (0 == load_image_from_mmc_blfs(&image, optee_itb_path)) {
+						load_optee_res = 0;
+						pr_debug("MMC: loaded %s from bootloader fs\n",
+							 optee_itb_path);
+					}
+				}
+#endif
 
-				/* Copy DTB address to caller's spl_image (shared between opensbi and uboot) */
-				if (image.fdt_addr)
-					spl_image->fdt_addr = image.fdt_addr;
+				if (0 == load_image_from_mmc_blfs(&image, uboot_itb_path)) {
+					load_esos_res = 0;
+					load_uboot_res = 0;
 
-				/* Extract U-Boot entry point for opensbi to jump to */
-				if (uboot_entry && image.entry_point)
-					*uboot_entry = image.entry_point;
+					/* Copy DTB address to caller's spl_image (shared between opensbi and uboot) */
+					if (image.fdt_addr)
+						spl_image->fdt_addr = image.fdt_addr;
+
+					/* Extract U-Boot entry point for opensbi to jump to */
+					if (uboot_entry && image.entry_point)
+						*uboot_entry = image.entry_point;
+				} else {
+					blfs_load_failed = true;
+				}
 			} else {
 				blfs_load_failed = true;
 			}
@@ -836,6 +873,9 @@ int board_load_extra_fits(struct spl_image_info *spl_image, ulong *uboot_entry)
 			/* Legacy mode: load FIT images from partitions */
 			const char *tmp;
 			char *part_esos = NULL, *part_uboot = NULL;
+#ifdef CONFIG_SPACEMIT_SECURE_BOARD
+			char *part_optee = NULL;
+#endif
 			pr_debug("MMC: using legacy FIT load mode\n");
 			tmp = env_get("extra_esos_partition");
 			if (tmp)
@@ -843,6 +883,11 @@ int board_load_extra_fits(struct spl_image_info *spl_image, ulong *uboot_entry)
 			tmp = env_get("extra_uboot_partition");
 			if (tmp)
 				part_uboot = strdup(tmp);
+#ifdef CONFIG_SPACEMIT_SECURE_BOARD
+			tmp = env_get("extra_optee_partition");
+			if (tmp)
+				part_optee = strdup(tmp);
+#endif
 
 			if (part_esos && *part_esos) {
 				if (esos_off)
@@ -852,6 +897,26 @@ int board_load_extra_fits(struct spl_image_info *spl_image, ulong *uboot_entry)
 			} else {
 				pr_debug("extra_esos_partition not set, skip MMC esos\n");
 			}
+#ifdef CONFIG_SPACEMIT_SECURE_BOARD
+			/* Load optee BEFORE uboot (mandatory on secure builds):
+			 * load_fit_from_mmc* reads the itb into
+			 * spl_get_load_buffer() (= CONFIG_SYS_TEXT_BASE = 0x102000000),
+			 * which overlaps the uboot load address. Loading optee after
+			 * uboot would clobber the just-loaded uboot image.
+			 * Fall back to default partition "optee" when the env var is
+			 * unset, mirroring the MTD path, so a missing/corrupt env does
+			 * not fail a secure boot outright.
+			 */
+			optee_mandatory = true;
+			if (optee_off) {
+				load_optee_res = load_fit_from_mmc_offset(spl_image, optee_off, NULL);
+			} else if (part_optee && *part_optee) {
+				load_optee_res = load_fit_from_mmc(spl_image, part_optee, NULL);
+			} else {
+				pr_debug("extra_optee_partition not set, use default 'optee'\n");
+				load_optee_res = load_fit_from_mmc(spl_image, "optee", NULL);
+			}
+#endif
 			if (part_uboot && *part_uboot) {
 				if (uboot_off)
 					load_uboot_res = load_fit_from_mmc_offset(spl_image, uboot_off, uboot_entry);
@@ -866,6 +931,10 @@ int board_load_extra_fits(struct spl_image_info *spl_image, ulong *uboot_entry)
 				free(part_esos);
 			if (part_uboot)
 				free(part_uboot);
+#ifdef CONFIG_SPACEMIT_SECURE_BOARD
+			if (part_optee)
+				free(part_optee);
+#endif
 		}
 		break;
 	}
@@ -875,6 +944,9 @@ int board_load_extra_fits(struct spl_image_info *spl_image, ulong *uboot_entry)
 	case BOOT_DEVICE_NAND: {
 		const char *tmp;
 		char *part_esos = NULL, *part_uboot = NULL;
+#ifdef CONFIG_SPACEMIT_SECURE_BOARD
+		char *part_optee = NULL;
+#endif
 		ulong esos_off = 0, uboot_off = 0;
 
 		tmp = env_get("extra_esos_partition");
@@ -883,10 +955,18 @@ int board_load_extra_fits(struct spl_image_info *spl_image, ulong *uboot_entry)
 		tmp = env_get("extra_uboot_partition");
 		if (tmp)
 			part_uboot = strdup(tmp);
+#ifdef CONFIG_SPACEMIT_SECURE_BOARD
+		tmp = env_get("extra_optee_partition");
+		if (tmp)
+			part_optee = strdup(tmp);
+#endif
 
 		/* Get offset as fallback if partition not set */
 		esos_off = env_get_ulong("esos_offset", 16, 0);
 		uboot_off = env_get_ulong("uboot_offset", 16, 0);
+#ifdef CONFIG_SPACEMIT_SECURE_BOARD
+		optee_off = env_get_ulong("optee_offset", 16, 0);
+#endif
 
 		mtd_probe_devices();
 
@@ -907,6 +987,36 @@ int board_load_extra_fits(struct spl_image_info *spl_image, ulong *uboot_entry)
 				pr_debug("MTD: no esos partition or offset available\n");
 			}
 		}
+
+#ifdef CONFIG_SPACEMIT_SECURE_BOARD
+		/* Load optee BEFORE uboot (mandatory on secure builds):
+		 * load_fit_from_mtd* reads the whole ITB
+		 * into spl_get_load_buffer() (= CONFIG_SYS_TEXT_BASE = 0x102000000),
+		 * which overlaps the uboot load address - loading optee after uboot
+		 * would clobber the just-loaded uboot image (same constraint as the
+		 * MMC paths above). Also load_fit_from_mtd*() writes the FIT's
+		 * fdt_addr into spl_image->fdt_addr on success, so optee must not
+		 * run after esos/uboot have set the final DTB address.
+		 */
+		optee_mandatory = true;
+		if (part_optee && *part_optee) {
+			load_optee_res = load_fit_from_mtd(
+				spl_image, strcmp(part_optee, "1") == 0 ? "optee" : part_optee,
+				NULL);
+		} else {
+			/* Try default partition name "optee" */
+			struct mtd_info *mtd = get_mtd_device_nm("optee");
+			if (!IS_ERR_OR_NULL(mtd)) {
+				printf("MTD: loading optee from default partition 'optee'\n");
+				load_optee_res = load_fit_from_mtd(spl_image, "optee", NULL);
+			} else if (optee_off) {
+				printf("MTD: loading optee from offset 0x%lx\n", optee_off);
+				load_optee_res = load_fit_from_mtd_offset(spl_image, optee_off, NULL);
+			} else {
+				printf("MTD: no optee partition or offset available\n");
+			}
+		}
+#endif
 
 		/* Load uboot: env partition -> default "uboot" -> offset */
 		if (part_uboot && *part_uboot) {
@@ -931,6 +1041,10 @@ int board_load_extra_fits(struct spl_image_info *spl_image, ulong *uboot_entry)
 			free(part_esos);
 		if (part_uboot)
 			free(part_uboot);
+#ifdef CONFIG_SPACEMIT_SECURE_BOARD
+		if (part_optee)
+			free(part_optee);
+#endif
 		break;
 	}
 #endif
@@ -1010,6 +1124,30 @@ int board_load_extra_fits(struct spl_image_info *spl_image, ulong *uboot_entry)
 		break;
 	}
 
+#ifdef CONFIG_SPACEMIT_SECURE_BOARD
+
+	/*
+	 * Success semantics on secure builds:
+	 * - uboot/esos keep the original non-secure tolerance (either one
+	 *   loaded is enough for those paths), i.e. !load_uboot_res ||
+	 *   !load_esos_res.
+	 * - OP-TEE is mandatory on the boot paths that load it (MMC/MTD,
+	 *   tracked by optee_mandatory): a missing or failed optee load must
+	 *   abort instead of silently continuing on the non-secure path.
+	 * - Paths that never load OP-TEE (UFS, default/unknown boot device)
+	 *   keep the plain non-secure check - optee_mandatory stays false
+	 *   there so they are not killed by the extra requirement.
+	 */
+	if ((!load_uboot_res || !load_esos_res) &&
+	    (!optee_mandatory || !load_optee_res)) {
+		spl_perform_fixups(spl_image);
+		return 0;
+	} else {
+		pr_err("load failed: uboot=%d esos=%d optee=%d\n",
+		       load_uboot_res, load_esos_res, load_optee_res);
+		return -1;
+	}
+#else
 	if (!load_uboot_res || !load_esos_res) {
 		spl_perform_fixups(spl_image);
 		return 0;
@@ -1017,4 +1155,5 @@ int board_load_extra_fits(struct spl_image_info *spl_image, ulong *uboot_entry)
 		pr_err("load failed: uboot=%d esos=%d\n", load_uboot_res, load_esos_res);
 		return -1;
 	}
+#endif
 }

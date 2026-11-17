@@ -46,15 +46,15 @@ int _fb_mtd_write(struct mtd_info *mtd, void *buffer, u32 offset,
 
 /**
  * @brief read data to mtd part.
- * 
+ *
  * @param mtd: mtd dev.
  * @param buffer: the data would read to buffer.
  * @param offset: the offset to read from the mtd dev.
  * @param length: the length to read from the mtd dev.
  * @param written
- * @return int 
+ * @return int
  */
-int _fb_mtd_read(struct mtd_info *mtd, void *buffer, u32 offset,
+int _fb_mtd_read(struct mtd_info *mtd, void *buffer, u64 offset,
 			  size_t length, size_t *written);
 
 /**
@@ -93,7 +93,7 @@ void fastboot_mtd_flash_erase(const char *cmd, char *response);
  * @part_name: Named partition to read
  * @response: Pointer to fastboot response buffer
  */
-u32 fastboot_mtd_flash_read(const char *part_name, u32 offset,
+u32 fastboot_mtd_flash_read(const char *part_name, u64 offset,
 					void *download_buffer, char *response);
 
 #endif

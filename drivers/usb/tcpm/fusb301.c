@@ -179,12 +179,13 @@ static int fusb301_i2c_read(struct udevice *dev, u8 offset, u8 *data)
 
 	for (retries = 0; retries < 3; retries++) {
 		ret = dm_i2c_reg_read(dev, offset);
-		if (ret < 0) {
-			dev_err(dev, "cannot read %02x, ret=%d\n", offset, ret);
+		if (ret >= 0) {
+			*data = (u8)ret;
+			return 0;
 		}
-		break;
 	}
-	*data = (u8)ret;
+
+	dev_err(dev, "cannot read %02x, ret=%d\n", offset, ret);
 
 	return ret;
 }
@@ -245,7 +246,7 @@ static int fusb301_update_status(struct fusb301_chip *chip)
 		 chip->mode, chip->pwr_mode, chip->dttime);
 
 	ret = fusb301_i2c_read(dev, FUSB301_REG_STATUS, &status);
-	if (ret)
+	if (ret < 0)
 		return ret;
 	chip->vbus_present = !!(status & FUSB301_STATUS_VBUS_OK);
 
@@ -280,7 +281,7 @@ static int fusb301_set_chip_state(struct fusb301_chip *chip, enum fusb301_state 
 		break;
 	default:
 		dev_err(dev, "unexpected state: 0x%02x\n", state);
-		break;
+		return -EINVAL;
 	}
 	ret = fusb301_i2c_write_bits(dev, FUSB301_REG_MANUAL,
 				     FUSB301_MANUAL_MASK,
@@ -551,6 +552,24 @@ static int fusb301_set_roles(struct udevice *dev, bool attached,
 
 static int fusb301_set_pd_rx(struct udevice *dev, bool on)
 {
+	u8 type;
+	int ret;
+
+	if (!on)
+		return 0;
+
+	ret = fusb301_i2c_read(dev, FUSB301_REG_TYPE, &type);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * Only skip negotiation on the sink path. A partner sinking power means
+	 * we are the source, and tcpm_src_attach() treats an error here as
+	 * fatal: it would skip enabling VBUS and leave port->attached false.
+	 */
+	if (!(type & FUSB301_TYPE_SNK))
+		return -EOPNOTSUPP;
+
 	return 0;
 }
 
@@ -568,7 +587,7 @@ static int fusb301_get_cc(struct udevice *dev, enum typec_cc_status *cc1,
 			  enum typec_cc_status *cc2)
 {
 	struct fusb301_chip *chip = dev_get_priv(dev);
-	enum typec_cc_status cc;
+	enum typec_cc_status cc = TYPEC_CC_OPEN;
 	u8 type, status;
 	int ret;
 
@@ -676,7 +695,7 @@ static int fusb301_set_polarity(struct udevice *dev,
 	enum typec_orientation orientation;
 
 	if (!sw_dev)
-		return -ENODEV;
+		return 0;
 
 	if (polarity == TYPEC_POLARITY_CC1)
 		orientation = TYPEC_ORIENTATION_NORMAL;
@@ -693,8 +712,12 @@ static int fusb301_get_vbus(struct udevice *dev)
 
 	ret = fusb301_i2c_read(dev, FUSB301_REG_STATUS, &status);
 	if (ret < 0) {
+		/*
+		 * Callers treat the return value as a boolean, so a negative
+		 * errno would read as "VBUS present". Report absent instead.
+		 */
 		dev_err(dev, "%s: failed to read status\n", __func__);
-		return ret;
+		return 0;
 	}
 	dev_info(dev, "get vbus: %s\n", (status & FUSB301_STATUS_VBUS_OK) ? "On" : "Off");
 
@@ -718,12 +741,15 @@ static int fusb301_init(struct udevice *dev)
 	ret = fusb301_reset_device(chip);
 	if (ret) {
 		dev_err(dev, "failed to reset device, ret: %d\n", ret);
-		// return ret;
+		return ret;
 	}
 
+	/* orientation switch is optional */
 	ret = typec_switch_get(dev, &chip->sw);
-	if (ret)
-		dev_err(dev, "failed to get typec switch\n");
+	if (ret) {
+		chip->sw = NULL;
+		dev_dbg(dev, "no typec switch: %d\n", ret);
+	}
 
 	return 0;
 }

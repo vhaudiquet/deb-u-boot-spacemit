@@ -134,11 +134,15 @@ void init_snps_ddrc_quick(uint32_t ddrc_base, ddr_part_type type, ddr_training_i
 	phy_reg[0xc0086] = 0x1;
 
 	if (DDR_TYPE_LPDDR5 == type) {
+#ifdef CONFIG_K3_DDR_LPDDR5
 		load_lp5_quickboot_firmware(dphy_base);
 		load_lp5_quickboot_dmem(dphy_base);
+#endif
 	} else if (DDR_TYPE_LPDDR4X == type) {
+#ifdef CONFIG_K3_DDR_LPDDR4X
 		load_lp4x_quickboot_firmware(dphy_base);
 		load_lp4x_quickboot_dmem(dphy_base);
+#endif
 	} else {
 		pr_err("Unsupported DDR type\n");
 	}

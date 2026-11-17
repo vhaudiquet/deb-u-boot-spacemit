@@ -36,6 +36,7 @@
 #include <u-boot/crc.h>
 #include <linux/log2.h>
 #include <spi_flash.h>
+#include <tee/optee.h>
 
 #ifdef CONFIG_ESPI
 extern bool spacemit_espi_is_ready(void);
@@ -65,7 +66,7 @@ struct boot_storage_op
 };
 
 static struct k3_nor_boot_target k3_nor_boot_prio[] = {
-#ifdef CONFIG_SCSI
+#if CONFIG_IS_ENABLED(SCSI)
 	{ K3_NOR_BOOT_TARGET_SCSI, "scsi", "ufs_devnum",
 	  K3_NOR_UFS_DEVNUM_DEFAULT },
 #endif
@@ -73,7 +74,7 @@ static struct k3_nor_boot_target k3_nor_boot_prio[] = {
 	{ K3_NOR_BOOT_TARGET_NVME, "nvme", "ssd_devnum",
 	  K3_NOR_SSD_DEVNUM_DEFAULT },
 #endif
-#ifdef CONFIG_MMC
+#if CONFIG_IS_ENABLED(MMC)
 	{ K3_NOR_BOOT_TARGET_MMC, "mmc", "emmc_devnum",
 	  K3_NOR_EMMC_DEVNUM_DEFAULT },
 #endif
@@ -259,7 +260,7 @@ static struct blk_desc *k3_nor_get_nvme_desc(u32 devnum)
 }
 #endif
 
-#ifdef CONFIG_SCSI
+#if CONFIG_IS_ENABLED(SCSI)
 int board_scsi_scan_once(bool verbose)
 {
 	static bool scsi_scanned;
@@ -287,7 +288,7 @@ int k3_prepare_scsi_flash_target(u32 devnum)
 	if (scsi_flash_target_prepared)
 		return 0;
 
-#ifdef CONFIG_UFS
+#if CONFIG_IS_ENABLED(UFS)
 	ret = ufs_prepare_dev_for_flash(devnum);
 	if (ret) {
 		pr_err("failed to prepare UFS device %u for flashing: %d\n",
@@ -315,7 +316,7 @@ static struct blk_desc *k3_nor_get_scsi_desc(u32 devnum)
 }
 #endif
 
-#ifdef CONFIG_MMC
+#if CONFIG_IS_ENABLED(MMC)
 static struct blk_desc *k3_nor_get_mmc_desc(u32 devnum)
 {
 	struct mmc *mmc = find_mmc_device(devnum);
@@ -339,11 +340,11 @@ static struct blk_desc *k3_nor_get_desc_by_target(const struct k3_nor_boot_targe
 	case K3_NOR_BOOT_TARGET_NVME:
 		return k3_nor_get_nvme_desc(devnum);
 #endif
-#ifdef CONFIG_SCSI
+#if CONFIG_IS_ENABLED(SCSI)
 	case K3_NOR_BOOT_TARGET_SCSI:
 		return k3_nor_get_scsi_desc(devnum);
 #endif
-#ifdef CONFIG_MMC
+#if CONFIG_IS_ENABLED(MMC)
 	case K3_NOR_BOOT_TARGET_MMC:
 		return k3_nor_get_mmc_desc(devnum);
 #endif
@@ -362,7 +363,7 @@ static bool k3_nor_has_bootfs(struct blk_desc *desc)
 	return part_get_info_by_name(desc, BOOTFS_NAME, &info) >= 0;
 }
 
-#if defined(CONFIG_MMC) || defined(CONFIG_SCSI)
+#if CONFIG_IS_ENABLED(MMC) || CONFIG_IS_ENABLED(SCSI)
 static ulong read_block_device(struct blk_desc *dev_desc, ulong byte_addr, ulong byte_size, void *buff)
 {
 	ulong ret, tail_bytes, total_bytes;
@@ -389,7 +390,7 @@ static ulong read_block_device(struct blk_desc *dev_desc, ulong byte_addr, ulong
 }
 #endif
 
-#ifdef CONFIG_MMC
+#if CONFIG_IS_ENABLED(MMC)
 static ulong read_boot_storage_emmc(ulong byte_addr, ulong byte_size, void* buff)
 {
 	return read_block_device(blk_get_dev("mmc", MMC_DEV_EMMC),
@@ -411,7 +412,7 @@ static ulong read_boot_storage_spinor(ulong byte_addr, ulong byte_size, void* bu
 	}
 }
 
-#ifdef CONFIG_SCSI
+#if CONFIG_IS_ENABLED(SCSI)
 static ulong read_boot_storage_ufs(ulong byte_addr, ulong byte_size, void* buff)
 {
 	return read_block_device(k3_nor_get_scsi_desc(K3_NOR_UFS_DEVNUM_DEFAULT),
@@ -423,18 +424,18 @@ static ulong read_boot_storage_ufs(ulong byte_addr, ulong byte_size, void* buff)
 
 // NOT support write operation in SPL stage
 static const struct boot_storage_op storage_op[] = {
-#ifdef CONFIG_MMC
+#if CONFIG_IS_ENABLED(MMC)
 	{ BOOT_MODE_EMMC, 0x140000, read_boot_storage_emmc, NULL },
 #endif
 	{ BOOT_MODE_NOR, 0x10000, read_boot_storage_spinor, NULL },
-#ifdef CONFIG_SCSI
+#if CONFIG_IS_ENABLED(SCSI)
 	{ BOOT_MODE_UFS, 0x140000, read_boot_storage_ufs, NULL },
 #endif
 };
 
 #else
 
-#if defined(CONFIG_MMC) || defined(CONFIG_SCSI)
+#if CONFIG_IS_ENABLED(MMC) || CONFIG_IS_ENABLED(SCSI)
 static bool write_block_device(struct blk_desc *dev_desc, ulong byte_addr, ulong byte_size, void *buff)
 {
 	if (!dev_desc || dev_desc->type == DEV_TYPE_UNKNOWN) {
@@ -450,7 +451,7 @@ static bool write_block_device(struct blk_desc *dev_desc, ulong byte_addr, ulong
 }
 #endif
 
-#ifdef CONFIG_MMC
+#if CONFIG_IS_ENABLED(MMC)
 static bool write_boot_storage_emmc(ulong byte_addr, ulong byte_size, void* buff)
 {
 	return write_block_device(blk_get_dev("mmc", MMC_DEV_EMMC),
@@ -474,7 +475,7 @@ static bool write_boot_storage_spinor(ulong byte_addr, ulong byte_size, void* bu
 		return false;
 }
 
-#ifdef CONFIG_SCSI
+#if CONFIG_IS_ENABLED(SCSI)
 static bool write_boot_storage_ufs(ulong byte_addr, ulong byte_size, void* buff)
 {
 	return write_block_device(k3_nor_get_scsi_desc(K3_NOR_UFS_DEVNUM_DEFAULT),
@@ -483,11 +484,11 @@ static bool write_boot_storage_ufs(ulong byte_addr, ulong byte_size, void* buff)
 #endif
 
 static const struct boot_storage_op storage_op[] = {
-#ifdef CONFIG_MMC
+#if CONFIG_IS_ENABLED(MMC)
 	{ BOOT_MODE_EMMC, 0x140000, read_boot_storage_emmc, write_boot_storage_emmc },
 #endif
 	{ BOOT_MODE_NOR, 0x10000, read_boot_storage_spinor, write_boot_storage_spinor },
-#ifdef CONFIG_SCSI
+#if CONFIG_IS_ENABLED(SCSI)
 	{ BOOT_MODE_UFS, 0x140000, read_boot_storage_ufs, write_boot_storage_ufs },
 #endif
 };
@@ -818,7 +819,7 @@ void run_fastboot_command(void)
 
 void try_flash_image_from_card(void)
 {
-#ifdef CONFIG_MMC
+#if CONFIG_IS_ENABLED(MMC)
 	struct mmc *mmc;
 	struct disk_partition info;
 	int part;
@@ -1236,6 +1237,7 @@ void setenv_boot_mode(void)
 	 * doesn't "stick" across boots unless explicitly set again.
 	 */
 	const char *boot_override = env_get("boot_override");
+	char cmd[64];
 
 	if (boot_override) {
 		env_set("boot_device", boot_override);
@@ -1289,7 +1291,8 @@ void setenv_boot_mode(void)
 		break;
 	case BOOT_MODE_USB:
 		// for fastboot image download and run test
-		env_set("bootcmd", USB_BOOT_COMMAND);
+		sprintf(cmd, "bootm 0x%lx", CONFIG_FASTBOOT_BUF_ADDR);
+		env_set("bootcmd", cmd);
 		break;
 	default:
 		env_set("boot_device", "");
@@ -1582,7 +1585,7 @@ void import_env_from_bootfs(void)
 	}
 	case BOOT_MODE_EMMC:
 	case BOOT_MODE_SD:
-#ifdef CONFIG_MMC
+#if CONFIG_IS_ENABLED(MMC)
 		int dev;
 		struct mmc *mmc;
 
@@ -1600,7 +1603,7 @@ void import_env_from_bootfs(void)
 		break;
 #endif
 	case BOOT_MODE_UFS:
-#ifdef CONFIG_SCSI
+#if CONFIG_IS_ENABLED(SCSI)
 		struct blk_desc *ufs_dev_desc;
 
 		board_scsi_scan_once(false);
@@ -1771,6 +1774,7 @@ int board_fit_config_name_match(const char *name)
 
 	if (NULL == product_name) {
 		product_name = DEFAULT_PRODUCT_NAME;
+		env_set("product_name", DEFAULT_PRODUCT_NAME);
 	}
 
 	if (0 == strcmp(product_name, name)) {
@@ -1813,6 +1817,25 @@ static int ft_board_cpu_fixup(void *blob, struct bd_info *bd)
 	if (ret < 0)
 		return ret;
 #endif
+
+	{
+		char pmic_type[64] = {0};
+		int cpus_node, len, ret;
+
+		len = get_tlvinfo(TLV_CODE_PMIC_TYPE, pmic_type, sizeof(pmic_type) - 1);
+		if (len > 0) {
+			cpus_node = fdt_path_offset(blob, "/cpus");
+			if (cpus_node >= 0) {
+				ret = fdt_setprop_string(blob, cpus_node, "pmic-compatible", pmic_type);
+				if (ret < 0)
+					pr_err("Spacemit K3: failed to set pmic-compatible: %s\n",
+					       fdt_strerror(ret));
+			}
+		} else {
+			pr_warn("Spacemit K3: TLV_CODE_PMIC_TYPE not found, defaulting to OPP table0 (0.95V)\n");
+		}
+	}
+
 	return 0;
 }
 
@@ -1862,6 +1885,7 @@ static int ft_board_mac_addr_fixup(void *blob, struct bd_info *bd)
 int ft_board_setup(void *blob, struct bd_info *bd)
 {
 	__maybe_unused struct fdt_memory mem;
+	int ret;
 
 	if (CONFIG_IS_ENABLED(FDT_SIMPLEFB)) {
 		/* reserved with no-map tag the video buffer */
@@ -1874,6 +1898,11 @@ int ft_board_setup(void *blob, struct bd_info *bd)
 	ft_board_cpu_fixup(blob, bd);
 	ft_board_info_fixup(blob, bd);
 	ft_board_mac_addr_fixup(blob, bd);
+
+	ret = riscv_optee_copy_fdt_nodes(blob);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 

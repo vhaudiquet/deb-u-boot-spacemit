@@ -881,13 +881,76 @@ static int read_bar(struct spi_nor *nor, const struct flash_info *info)
 #endif
 
 /*
+ * spi_nor_can_erase_block() - can this run use the native block erase?
+ * @nor: the flash
+ * @addr: absolute address of the run
+ * @len: length of the run
+ */
+static bool spi_nor_can_erase_block(const struct spi_nor *nor, u32 addr,
+				    u64 len)
+{
+	u32 block = nor->info->sector_size;
+
+	/*
+	 * Only a 4K erasesize that came from spi_nor_select_erase() taking
+	 * the SECT_4K branch is handled: block is info->sector_size, which
+	 * is defined as the size SPINOR_OP_SE erases. A 4K erasesize from
+	 * SFDP, or a part with no larger block, keeps the 4K opcode.
+	 */
+	if (nor->mtd.erasesize != SZ_4K || block <= SZ_4K)
+		return false;
+
+	/* The driver callback reimplements erase and ignores op/chunk. */
+	if (nor->erase)
+		return false;
+
+	/*
+	 * Confirm the current opcode is really a 4K one. An SFDP erasesize
+	 * also has erase_opcode = whatever the BFPT reported, which is not
+	 * in this set, so it is rejected here.
+	 */
+	if (nor->erase_opcode != SPINOR_OP_BE_4K &&
+	    nor->erase_opcode != SPINOR_OP_BE_4K_4B &&
+	    nor->erase_opcode != SPINOR_OP_BE_4K_PMC)
+		return false;
+
+	/*
+	 * SPINOR_OP_SE erases the whole block containing addr and ignores
+	 * the low address bits, so the run has to cover a whole block and
+	 * start on its boundary. mtd_erase() only guarantees erasesize
+	 * alignment, and part_erase() adds the partition offset first.
+	 */
+	return len >= block && !(addr % block);
+}
+
+/*
+ * spi_nor_block_erase_opcode() - opcode for the native block erase
+ * @nor: the flash
+ */
+static u8 spi_nor_block_erase_opcode(const struct spi_nor *nor)
+{
+	/*
+	 * The 4-byte opcode needs both the 4-byte command set and the flag,
+	 * matching when spi_nor_scan() calls spi_nor_set_4byte_opcodes().
+	 * A part above 16MiB without SPI_NOR_4B_OPCODES only enables the
+	 * EN4B extended address mode: its erase opcode stays 3-byte, so
+	 * 0xdc would be an unsupported command.
+	 */
+	if (nor->addr_width == 4 && (nor->info->flags & SPI_NOR_4B_OPCODES))
+		return SPINOR_OP_SE_4B;
+
+	return SPINOR_OP_SE;
+}
+
+/*
  * Initiate the erasure of a single sector. Returns the number of bytes erased
  * on success, a negative error code on error.
  */
-static int spi_nor_erase_sector(struct spi_nor *nor, u32 addr)
+static int spi_nor_erase_sector(struct spi_nor *nor, u32 addr, u8 opcode,
+				u32 sector_size)
 {
 	struct spi_mem_op op =
-		SPI_MEM_OP(SPI_MEM_OP_CMD(nor->erase_opcode, 0),
+		SPI_MEM_OP(SPI_MEM_OP_CMD(opcode, 0),
 			   SPI_MEM_OP_ADDR(nor->addr_width, addr, 0),
 			   SPI_MEM_OP_NO_DUMMY,
 			   SPI_MEM_OP_NO_DATA);
@@ -906,7 +969,7 @@ static int spi_nor_erase_sector(struct spi_nor *nor, u32 addr)
 	if (ret)
 		return ret;
 
-	return nor->mtd.erasesize;
+	return sector_size;
 }
 
 /*
@@ -936,6 +999,20 @@ static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 	addr_known = true;
 
 	while (len) {
+		u8 op = nor->erase_opcode;
+		u32 chunk = mtd->erasesize;
+
+		/*
+		 * With 4K sectors enabled the erasesize is 4096, so a large
+		 * erase would become one sub-sector erase per 4K. Use the
+		 * native block opcode for full aligned blocks and leave only
+		 * the trailing remainder on the small-sector opcode.
+		 */
+		if (spi_nor_can_erase_block(nor, addr, len)) {
+			op = spi_nor_block_erase_opcode(nor);
+			chunk = nor->info->sector_size;
+		}
+
 		WATCHDOG_RESET();
 		if (!IS_ENABLED(CONFIG_SPL_BUILD) && ctrlc()) {
 			addr_known = false;
@@ -951,7 +1028,7 @@ static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 		if (ret < 0)
 			goto erase_err;
 
-		ret = spi_nor_erase_sector(nor, addr);
+		ret = spi_nor_erase_sector(nor, addr, op, chunk);
 		if (ret < 0)
 			goto erase_err;
 

@@ -45,3 +45,4 @@ config DDR_QOS
 
 source "drivers/ddr/altera/Kconfig"
 source "drivers/ddr/imx/Kconfig"
+source "drivers/ddr/spacemit/k3/Kconfig"

@@ -65,4 +65,14 @@ static inline int optee_copy_fdt_nodes(void *new_blob)
 }
 #endif
 
+#if defined(CONFIG_RISCV_OPTEE_SUPPORT) && defined(CONFIG_OF_LIBFDT) && \
+	!defined(CONFIG_SPL_BUILD)
+int riscv_optee_copy_fdt_nodes(void *new_blob);
+#else
+static inline int riscv_optee_copy_fdt_nodes(void *new_blob)
+{
+	return 0;
+}
+#endif
+
 #endif /* _OPTEE_H */

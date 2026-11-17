@@ -316,6 +316,8 @@ static int spacemit_mipi_dsi_probe(struct udevice *dev)
 	unsigned long rate;
 	int ret;
 	u32 bit_clk, pix_clk;
+	void __iomem *ciu_addr;
+	u32 value;
 
 	pr_debug("%s: device %s \n", __func__, dev->name);
 
@@ -420,6 +422,12 @@ static int spacemit_mipi_dsi_probe(struct udevice *dev)
 		pr_err("reset_assert dsc_reset failed: %d\n", ret);
 		return ret;
 	}
+
+	/* dpu0 mux mipi dsi */
+	ciu_addr = (void __iomem *)0xd4282c00;
+	value = readl(ciu_addr + 0x12c);
+	value &= ~BIT(8);
+	writel(value, ciu_addr + 0x12c);
 
 	ret = clk_enable(&priv->pxclk);
 	if (ret < 0) {

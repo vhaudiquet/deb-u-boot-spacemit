@@ -9,7 +9,7 @@
 /*
  * Include public key for SPL stage (verifying U-Boot)
  */
-#ifdef CONFIG_SPL_RSA_VERIFY
+#if defined(CONFIG_SPL_BUILD) && defined(CONFIG_SPL_RSA_VERIFY)
 #include "key/uboot_key_pub.dtsi"
 #endif
 

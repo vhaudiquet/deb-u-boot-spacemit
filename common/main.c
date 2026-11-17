@@ -17,6 +17,7 @@
 #include <net.h>
 #include <version_string.h>
 #include <efi_loader.h>
+#include <hang.h>
 
 static void run_preboot_environment_command(void)
 {

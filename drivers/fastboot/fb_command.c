@@ -923,7 +923,8 @@ static void oem_read(char *cmd_parameter, char *response)
 	return;
 #else
 	char *part, *offset_str, *cmd_str;
-	u32 off, boot_mode;
+	u64 off;
+	u32 boot_mode;
 
 	cmd_str = cmd_parameter;
 	part = strsep(&cmd_str, " ");
@@ -984,10 +985,10 @@ static void oem_read(char *cmd_parameter, char *response)
 		pr_info("miss offset, would set offset to 0\n");
 		off = 0;
 	}else{
-		off = simple_strtoul(offset_str, NULL, 0);
+		off = simple_strtoull(offset_str, NULL, 0);
 	}
 
-	debug("get part:%s, offset:%x\n", part, off);
+	debug("get part:%s, offset:%llx\n", part, off);
 
 	boot_mode = get_boot_pin_select();
 	switch(boot_mode){

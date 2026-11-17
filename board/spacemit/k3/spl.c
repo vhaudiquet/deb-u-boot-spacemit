@@ -419,10 +419,12 @@ static bool should_jump_to_brom(void)
 		should_jump = true;
 
 	/* Clear related P1 register's value */
-	value &= ~P1_NON_VOLATILE_REG_MASK;
-	ret = i2c_write(P1_I2C_SLAVE_ADDR, P1_NON_VOLATILE_REG, 1, &value, 1);
-	if (ret) {
-		printf("reboot fastboot: PMIC write failed\n");
+	if (should_jump) {
+		value &= ~P1_NON_VOLATILE_REG_MASK;
+		ret = i2c_write(P1_I2C_SLAVE_ADDR, P1_NON_VOLATILE_REG, 1, &value, 1);
+		if (ret) {
+			printf("reboot fastboot: PMIC write failed\n");
+		}
 	}
 
 	return should_jump;
@@ -926,60 +928,11 @@ static void spl_fixup_model(void *fdt)
 	fdt_setprop_string(fdt, root, "model", model);
 }
 
-static void spl_fixup_compatible(void *fdt)
-{
-	char product_name[64];
-	char compat[sizeof("spacemit,") + sizeof(product_name)];
-	const char *val;
-	int root, len, i, ret;
-
-	root = fdt_path_offset(fdt, "/");
-	if (root < 0)
-		return;
-
-	/*
-	 * Only extend the generic SoC compatible. Boards carrying their
-	 * own identity already (e.g. "deepcomputing,fml13v05") keep their
-	 * compatible list untouched.
-	 */
-	val = fdt_getprop(fdt, root, "compatible", &len);
-	if (!val || len != (int)sizeof("spacemit,k3") ||
-	    memcmp(val, "spacemit,k3", len))
-		return;
-
-	/*
-	 * TLV values are not NUL-terminated; use sizeof - 1 and force a
-	 * terminator.
-	 */
-	if (get_product_name(product_name, sizeof(product_name) - 1))
-		return;
-	product_name[sizeof(product_name) - 1] = '\0';
-
-	/*
-	 * Some EEPROM product names use '_' (e.g. "k3_com260") while the
-	 * kernel compatible strings use '-' (e.g. "spacemit,k3-com260").
-	 */
-	for (i = 0; product_name[i]; i++) {
-		if (product_name[i] == '_')
-			product_name[i] = '-';
-	}
-
-	snprintf(compat, sizeof(compat), "spacemit,%s", product_name);
-
-	ret = fdt_appendprop_string(fdt, root, "compatible", compat);
-	if (ret < 0)
-		pr_err("fail to append board compatible '%s': %s\n", compat,
-		       fdt_strerror(ret));
-	else
-		pr_info("append board compatible '%s'\n", compat);
-}
-
 void spl_perform_fixups(struct spl_image_info *spl_image)
 {
 	if ((NULL != spl_image) && (NULL != spl_image->fdt_addr)) {
 		dram_init_banksize();
 		spl_fixup_model(spl_image->fdt_addr);
-		spl_fixup_compatible(spl_image->fdt_addr);
 		spl_fixup_fdt(spl_image->fdt_addr);
 	}
 }

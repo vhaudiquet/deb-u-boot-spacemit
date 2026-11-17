@@ -25,6 +25,7 @@ class ImageBinary(object):
         super().__init__()
         self.LOG = log
         self.input_path = '.'
+        self.key_dir = None    # overrides key/ subdirectory when --key-dir is set
         self.arch = 2
         self.info_key_str = 'info'
         self.image_key = 'image'
@@ -411,7 +412,12 @@ class ImageBinary(object):
             return name, b''
 
         key_source = key_info_dict.get("source", '')
-        key_file_name = os.path.join(self.input_path, key_source)
+        # --key-dir overrides the key/ subdirectory for signing keys only.
+        # source values like "key/foo.key" → KEY_DIR/foo.key; other sources unaffected.
+        if self.key_dir and key_source.startswith('key/'):
+            key_file_name = os.path.join(self.key_dir, key_source[len('key/'):])
+        else:
+            key_file_name = os.path.join(self.input_path, key_source)
         self.LOG.debug(key_file_name)
 
         prvkey_filename, pubkey_filename = '', ''
@@ -427,6 +433,9 @@ class ImageBinary(object):
             else:
                 self.LOG.error(f"NO valid private or public key in file {key_file_name}!")
                 return name, b''
+        elif self.key_dir:
+            self.LOG.error(f"NO valid private or public key in file {key_file_name}!")
+            return name, b''
 
         method, cmd_dict, pubkey_str = self.encrypt_method_dict[al_info_tuple[0]]
         if not pubkey_filename:
@@ -625,6 +634,8 @@ def main(argv):
     )
     parser.add_argument('-c',   dest = 'json_file',     required = True,    help = 'configuration json file')
     parser.add_argument('-o',   dest = 'output_file',   default = 'img.bin', help = 'output file')
+    parser.add_argument('--key-dir', dest = 'key_dir',  default = None,
+                        help = 'Override key/ subdirectory for signing keys (e.g. external KEY_DIR)')
 
     args = parser.parse_args()
     json_file = args.json_file
@@ -633,6 +644,8 @@ def main(argv):
     log = common_decorator.Logger()
     # log = common_decorator.Logger('debug')
     image = ImageBinary(log)
+    if args.key_dir:
+        image.key_dir = os.path.abspath(args.key_dir)
     config_info_dict = image.extract_config(json_file)
     if config_info_dict and image.verify_config(config_info_dict):
         image.build_iamge(config_info_dict, output_file)

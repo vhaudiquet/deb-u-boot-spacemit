@@ -46,7 +46,7 @@ void fastboot_blk_erase(const char *cmd, char *response);
  * @part: Named partition to erase
  * @response: Pointer to fastboot response buffer
  */
-u32 fastboot_blk_read(const char *part, u32 offset,
+u32 fastboot_blk_read(const char *part, u64 offset,
 			void *download_buffer, char *response);
 
 #endif

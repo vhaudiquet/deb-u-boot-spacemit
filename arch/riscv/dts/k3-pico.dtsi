@@ -233,6 +233,11 @@
 		espi-vw-gpio-wire = <0>;       /* Wire 0 within the group */
 		espi-vw-gpio-index = <0x82>;   /* VM index 0x82 (Group 2/130) */
 
+		ec_pwm: ec-pwm {
+			compatible = "google,cros-ec-pwm";
+			#pwm-cells = <1>;
+		};
+
 		i2c_tunnel: i2c-tunnel {
 			compatible = "google,cros-ec-i2c-tunnel";
 			#address-cells = <1>;

@@ -32,6 +32,7 @@ struct spacemit_k3_ufs_priv {
 	u32 ref_clk_freq;
 	u32 clock_freq_hz;
 	ulong aclk_rate_hz;
+	bool safe_reprobe_mode;
 };
 
 static void spacemit_k3_ufs_config_scsi_scan_luns(struct udevice *dev);
@@ -192,11 +193,26 @@ static int spacemit_k3_ufs_parse_ref_clk_freq(u32 raw, u32 *ref_clk_freq)
  */
 static int spacemit_k3_ufs_set_power_mode(struct ufs_hba *hba)
 {
+	struct spacemit_k3_ufs_priv *priv = dev_get_priv(hba->dev);
 	struct ufs_pa_layer_attr final_pwr;
 	struct ufs_pa_layer_attr auto_pwr;
 	bool need_fastauto;
 	int retry;
 	int ret;
+
+	/*
+	 * Configuration descriptor changes on some YMTC devices are not
+	 * compatible with immediately renegotiating HS/FASTAUTO during the
+	 * re-probe. Keep the freshly restarted link in its POR PWM mode for
+	 * this one probe. The provisioning path restores normal HS mode after
+	 * confirming that the new LUN layout is active.
+	 */
+	if (priv->safe_reprobe_mode) {
+		dev_info(hba->dev,
+			 "ufs: keeping PWM power mode during post-provisioning reprobe\n");
+		ufshcd_print_pwr_info(hba);
+		return 0;
+	}
 
 	ret = ufshcd_get_max_pwr_mode(hba);
 	if (ret) {
@@ -483,7 +499,10 @@ out:
 #define SPACEMIT_UFS_UNIT_DESC_PARAM_CON_CAP 0x20
 #define SPACEMIT_UFS_UNIT_DESC_PARAM_LUN_WB_BUF_ALLOC_UNIT 0x29
 #define SPACEMIT_K3_UFS_RECONF_SETTLE_MS 300
+#define SPACEMIT_K3_UFS_REPROBE_RESET_HOLD_MS 100
+#define SPACEMIT_K3_UFS_REPROBE_SETTLE_MS 100
 #define SPACEMIT_UFS_DEFAULT_LOGICAL_BLK_SIZE 12
+#define SPACEMIT_K3_UFS_REPROBE_HS_SETTLE_MS 100
 
 static __maybe_unused int
 spacemit_k3_ufs_get_conf_desc_layout(struct ufs_hba *hba, int *head_desc_size,
@@ -1833,23 +1852,54 @@ static int spacemit_k3_ufs_reprobe(struct udevice *dev, const char *reason,
 {
 	struct ufs_hba *hba = dev_get_uclass_priv(dev);
 	struct ufs_hba_ops *hba_ops = (struct ufs_hba_ops *)dev->driver_data;
+	struct spacemit_k3_ufs_priv *priv = dev_get_priv(dev);
 	int ret;
+	int attempt;
 
 	if (!hba_ops)
 		return -ENODEV;
 
-	if (reset_first && hba_ops->device_reset) {
-		dev_dbg(hba->dev,
-			"ufs: reset UFS before reprobe after %s\n", reason);
-		hba_ops->device_reset(hba);
-		mdelay(20);
-	}
+	priv->safe_reprobe_mode = reset_first;
 
-	ret = ufshcd_probe(dev, hba_ops);
-	if (ret) {
-		dev_err(hba->dev, "ufs reprobe after %s failed: %d\n", reason, ret);
-		return ret;
+	for (attempt = 0; attempt < 3; attempt++) {
+		if (reset_first) {
+			/*
+			 * A device-only reset leaves the K3 host/UIC state alive.  On
+			 * YMTC parts a CONFIGURATION descriptor write followed by that
+			 * kind of warm reprobe can put the link in PWR_FATAL_ERROR.
+			 * Reset the host and PHY as one unit, including the platform
+			 * reset/clock gate, before starting a new probe.
+			 */
+			dev_info(hba->dev,
+				 "ufs: full host/device reset before reprobe after %s (attempt %d)\n",
+				 reason, attempt + 1);
+			if (hba->mmio_base)
+				ufshcd_writel(hba, CONTROLLER_DISABLE,
+					      REG_CONTROLLER_ENABLE);
+			if (hba_ops->device_reset)
+				hba_ops->device_reset(hba);
+			spacemit_k3_ufs_clk_disable(priv);
+			mdelay(SPACEMIT_K3_UFS_REPROBE_RESET_HOLD_MS);
+			ret = spacemit_k3_ufs_clk_enable(dev);
+			if (ret) {
+				dev_err(hba->dev,
+					"ufs: failed to re-enable host before reprobe: %d\n",
+					ret);
+				break;
+			}
+			mdelay(SPACEMIT_K3_UFS_REPROBE_SETTLE_MS);
+		}
+
+		ret = ufshcd_probe(dev, hba_ops);
+		if (!ret)
+			break;
+
+		dev_err(hba->dev, "ufs reprobe after %s failed: %d\n", reason,
+			ret);
 	}
+	priv->safe_reprobe_mode = false;
+	if (ret)
+		return ret;
 
 	spacemit_k3_ufs_config_scsi_scan_luns(dev);
 	return 0;
@@ -1896,6 +1946,26 @@ int ufs_prepare_dev_for_flash(int index)
 			"ufs: single-LUN layout is still inactive after reprobe\n");
 		return -EIO;
 	}
+
+	/*
+	 * The safe reprobe deliberately stayed in POR PWM mode so the device
+	 * could apply the new LUN layout. Do not carry that low-speed mode into
+	 * the actual flashing session: a 1 MiB SCSI request can exceed the UTP
+	 * command timeout in PWM G1. Once the new layout is verified, give the
+	 * link a short settle interval and restore the normal HS mode.
+	 */
+	dev_info(hba->dev,
+		 "ufs: restoring high-speed power mode after single-LUN reprobe\n");
+	mdelay(SPACEMIT_K3_UFS_REPROBE_HS_SETTLE_MS);
+	ret = spacemit_k3_ufs_set_power_mode(hba);
+	if (ret) {
+		dev_err(hba->dev,
+			"ufs: failed to restore high-speed power mode after single-LUN reprobe: %d\n",
+			ret);
+		return ret;
+	}
+	dev_info(hba->dev,
+		 "ufs: high-speed power mode restored for flashing\n");
 
 	return 0;
 }

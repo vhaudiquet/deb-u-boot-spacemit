@@ -715,7 +715,7 @@
 				regulator-name = "tdcdc2";
 				regulator-min-microvolt = <534000>;
 				regulator-max-microvolt = <1000000>;
-				regulator-init-microvolt = <950000>;
+				regulator-init-microvolt = <900000>;
 				regulator-boot-on;
 				u-boot,dm-spl;
 				regulator-state-mem {
@@ -784,7 +784,7 @@
 				regulator-name = "adcdc1";
 				regulator-min-microvolt = <540000>;
 				regulator-max-microvolt = <1000000>;
-				regulator-init-microvolt = <950000>;
+				regulator-init-microvolt = <910000>;
 				regulator-boot-on;
 				u-boot,dm-spl;
 				regulator-state-mem {
@@ -796,7 +796,7 @@
 				regulator-name = "adcdc2";
 				regulator-min-microvolt = <540000>;
 				regulator-max-microvolt = <1000000>;
-				regulator-init-microvolt = <950000>;
+				regulator-init-microvolt = <890000>;
 				regulator-boot-on;
 				u-boot,dm-spl;
 				regulator-state-mem {
@@ -828,9 +828,9 @@
 		       "pll3", "pll4", "pll5", "pll8", "pll_src3", "clt1_pll_src", "pll_src5", "clt3_pll_src";
 	topd_frequency = <800000000>;
 	axi_frequency =  <307000000>;
-	cci_frequency =  <1228000000>;
-	cluster0_frequency = <2200000000>;
-	cluster1_frequency = <2200000000>;
+	cci_frequency =  <1000000000>;
+	cluster0_frequency = <2000000000>;
+	cluster1_frequency = <2000000000>;
 	cluster2_frequency = <1800000000>;
 	cluster3_frequency = <1800000000>;
 };

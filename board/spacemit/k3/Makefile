@@ -6,3 +6,6 @@ obj-y	+= k3.o k3-tlvinfo.o k3-i2c-eeprom.o
 obj-$(CONFIG_SPL_BUILD) += spl.o spl_extra_fit.o
 obj-$(CONFIG_ENV_IS_IN_NFS) +=nfs_env.o
 obj-$(CONFIG_SPLASH_SOURCE) += splash.o
+ifndef CONFIG_SPL_BUILD
+obj-$(CONFIG_RISCV_OPTEE_SUPPORT) += k3-optee.o
+endif

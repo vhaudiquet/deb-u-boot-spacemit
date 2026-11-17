@@ -99,29 +99,6 @@
 		compatible = "simple-bus";
 		ranges;
 
-		clint0: clint@f1810000 {
-			compatible = "riscv,clint0";
-			interrupts-extended = <&cpu0_intc  3 &cpu0_intc  7
-				&cpu1_intc  3 &cpu1_intc  7
-				&cpu2_intc  3 &cpu2_intc  7
-				&cpu3_intc  3 &cpu3_intc  7
-				&cpu4_intc  3 &cpu4_intc  7
-				&cpu5_intc  3 &cpu5_intc  7
-				&cpu6_intc  3 &cpu6_intc  7
-				&cpu7_intc  3 &cpu7_intc  7
-				&cpu8_intc  3 &cpu8_intc  7
-				&cpu9_intc  3 &cpu9_intc  7
-				&cpu10_intc  3 &cpu10_intc  7
-				&cpu11_intc  3 &cpu11_intc  7
-				&cpu12_intc  3 &cpu12_intc  7
-				&cpu13_intc  3 &cpu13_intc  7
-				&cpu14_intc  3 &cpu14_intc  7
-				&cpu15_intc  3 &cpu15_intc  7
-			>;
-			reg = <0x0 0xf1810000 0x0 0x00010000>;
-			clint,has-no-64bit-mmio;
-		};
-
 		maplic: interrupt-controller@f1800000 {
 			compatible = "riscv,aplic";
 			msi-parent = <&mimsic>;
@@ -270,12 +247,14 @@
 			compatible = "spacemit,k3-pm-domain";
 			reg = <0x0 0xd4282800 0x0 0x400>;
 			#power-domain-cells = <1>;
+			spacemit,default-on = <K3_PMU_GPU_PWR_DOMAIN
+					       K3_PMU_LCD0_PWR_DOMAIN
+					       K3_PMU_LCD1_PWR_DOMAIN>;
                 };
 
 		uart0: uart@d4017000 {
 			u-boot,dm-spl;
-			compatible = "spacemit,k1-uart", "intel,xscale-uart",
-				     "ns16550";
+			compatible = "ns16550";
 			reg = <0x00000000 0xD4017000 0x00000000 0x00000100>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
@@ -428,10 +407,10 @@
 			reg = <0x0 0xd420c000 0x0 0x1000>,
 			      <0x0 0xb8000000 0x0 0x4100000>;
 			reg-names = "qspi-base", "qspi-mmap";
-			qspi-sfa1ad = <0x800000>;
-			qspi-sfa2ad = <0x1000000>;
-			qspi-sfb1ad = <0x1800000>;
-			qspi-sfb2ad = <0x2000000>;
+			qspi-sfa1ad = <0x1000000>;
+			qspi-sfa2ad = <0x2000000>;
+			qspi-sfb1ad = <0x2800000>;
+			qspi-sfb2ad = <0x3000000>;
 			qspi-pmuap-reg = <0xd4282860>;
 			qspi-mpmu-acgr-reg = <0xd4051024>;
 			qspi-ahbread = <1>;
@@ -1322,10 +1301,6 @@
 			<0x00005 0x0 0x01>,
 			/* BRANCH_MISSES */
 			<0x00006 0x0 0x02>,
-			/* STALLED_CYCLES_FRONTEND */
-			<0x00008 0x0 0x03>,
-			/* STALLED_CYCLES_BACKEND */
-			<0x00009 0x0 0x04>,
 			/* L1D_READ_ACCESS */
 			<0x10000 0x0 0x06>,
 			/* L1D_READ_MISS */
@@ -1363,7 +1338,6 @@
 			<0x00001 0x00001 0x00020000>,
 			<0x00002 0x00002 0x00040000>,
 			<0x00005 0x00006 0x0001fff8>,
-			<0x00008 0x00009 0x0001fff8>,
 			<0x10000 0x10005 0x0001fff8>,
 			<0x10008 0x10009 0x0001fff8>,
 			<0x10018 0x10018 0x0001fff8>,
@@ -1379,8 +1353,6 @@
 		riscv,raw-event-to-mhpmcounters =
 			<0x0 0x01 0xffffffff 0xffffffff 0x0001fff8>,
 			<0x0 0x02 0xffffffff 0xffffffff 0x0001fff8>,
-			<0x0 0x03 0xffffffff 0xffffffff 0x0001fff8>,
-			<0x0 0x04 0xffffffff 0xffffffff 0x0001fff8>,
 			<0x0 0x05 0xffffffff 0xffffffff 0x0001fff8>,
 			<0x0 0x06 0xffffffff 0xffffffff 0x0001fff8>,
 			<0x0 0x07 0xffffffff 0xffffffff 0x0001fff8>,

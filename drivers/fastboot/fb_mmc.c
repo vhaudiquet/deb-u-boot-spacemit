@@ -840,7 +840,7 @@ void fastboot_mmc_erase(const char *cmd, char *response)
  * @part: Named partition to read
  * @response: Pointer to fastboot response buffer
  */
-u32 fastboot_mmc_read(const char *part, u32 offset,
+u32 fastboot_mmc_read(const char *part, u64 offset,
 					void *download_buffer, char *response)
 {
 	struct blk_desc *dev_desc;
@@ -869,7 +869,7 @@ u32 fastboot_mmc_read(const char *part, u32 offset,
 	size_blk = info.size - (offset / info.blksz);
 
 	if (offset % info.blksz)
-		printf("offset should be align to 0x%lx, would change offset to 0x%lx\n",
+		printf("offset should be align to 0x%lx, would change offset to 0x%llx\n",
 								info.blksz, (offset / info.blksz) * info.blksz);
 
 	debug("info->blksize:%lx, off_blk:%lx, size_blk:%lx\n", info.blksz, off_blk, size_blk);

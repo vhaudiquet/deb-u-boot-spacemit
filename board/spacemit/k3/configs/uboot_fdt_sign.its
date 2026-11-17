@@ -26,6 +26,24 @@
 				algo = "sha256";
 			};
 		};
+		fdt_3 {
+			description = "k3_deb1.dtb";
+			type = "flat_dt";
+			compression = "none";
+			data = /incbin/("../dtb/k3_deb1.dtb");
+			hash {
+				algo = "sha256";
+			};
+		};
+		fdt_11 {
+			description = "k3-pico-itx.dtb";
+			type = "flat_dt";
+			compression = "none";
+			data = /incbin/("../dtb/k3-pico-itx.dtb");
+			hash {
+				algo = "sha256";
+			};
+		};
 	};
 	configurations {
 		default = "conf_1";
@@ -33,6 +51,26 @@
 			description = "k3_fpga";
 			loadables = "uboot";
 			fdt = "fdt_1";
+			signature {
+				algo = "sha256,rsa2048";
+				key-name-hint = "uboot_key_prv";
+				sign-images = "loadables", "fdt";
+			};
+		};
+		conf_3 {
+			description = "k3_deb1";
+			loadables = "uboot";
+			fdt = "fdt_3";
+			signature {
+				algo = "sha256,rsa2048";
+				key-name-hint = "uboot_key_prv";
+				sign-images = "loadables", "fdt";
+			};
+		};
+		conf_11 {
+			description = "k3-pico-itx";
+			loadables = "uboot";
+			fdt = "fdt_11";
 			signature {
 				algo = "sha256,rsa2048";
 				key-name-hint = "uboot_key_prv";
