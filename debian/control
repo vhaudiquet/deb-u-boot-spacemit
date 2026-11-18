@@ -32,6 +32,8 @@ Multi-Arch: foreign
 Depends: ${misc:Depends},
  kmod,
 Recommends: opensbi-spacemit
+Breaks: u-boot-spacemit (<< 1.0.5-1)
+Replaces: u-boot-spacemit (<< 1.0.5-1)
 Description: SPL (FSBL) bootloader for SpacemiT systems
  Das U-Boot is a cross-platform bootloader for embedded systems,
  used as the default boot loader by several board vendors.  It is
@@ -51,6 +53,7 @@ Multi-Arch: foreign
 Depends: ${misc:Depends},
  kmod,
 Built-Using: ${u-boot-spacemit:Built-Using}
+Conflicts: edk2-spacemit
 Description: U-Boot proper for SpacemiT systems
  Das U-Boot is a cross-platform bootloader for embedded systems,
  used as the default boot loader by several board vendors.  It is

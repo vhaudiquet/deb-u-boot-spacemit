@@ -1,7 +1,30 @@
+u-boot-spacemit (1.0.9+fix1-2) resolute; urgency=medium
+
+  * Integrate work from the 1.0.5-5 upload that was missing from
+    1.0.9+fix1-1 (the 1.0.9 snapshot was taken from a tree without it):
+    - d/postinst: drop u-boot-spl-spacemit postinst, flashing owned
+      by spacemit-firmware
+    - fastboot: verify flashed images with crc32 instead of an
+      additive sum
+  * git: ignore output dtb/bin files
+
+ -- Valentin Haudiquet <valentin.haudiquet@canonical.com>  Wed, 18 Nov 2026 10:30:00 +0100
+
+u-boot-spacemit (1.0.9+fix1-1) resolute; urgency=medium
+
+  * New upstream snapshot from ~spacemit/ubuntu/k3: 1.0.9+fix1
+  * Local patches rebased on the new snapshot:
+    - uart compatible strings for k3 opensbi logs
+    - k3: append board compatible from TLV EEPROM to SPL DT fixups
+  * d/control: adopt the upstream packaging relations:
+    - u-boot-spacemit: Conflicts: edk2-spacemit
+    - u-boot-spl-spacemit: Breaks/Replaces: u-boot-spacemit
+      (<< 1.0.5-1) for the pre-split file-move upgrade path
+
+ -- Valentin Haudiquet <valentin.haudiquet@canonical.com>  Tue, 17 Nov 2026 12:00:00 +0100
+
 u-boot-spacemit (1.0.5-5) resolute; urgency=medium
 
-  * d/postinst: drop u-boot-spl-spacemit postinst, flashing owned by spacemit-firmware
-  * fastboot: verify flashed images with crc32 instead of an additive sum
   * Read the board product name from the TLV EEPROM in SPL and append
     the board-specific compatible to the device tree handed to U-Boot
     (e.g. "spacemit,k3-pico-itx", "spacemit,k3-com260-ifx" after the
@@ -9,7 +32,8 @@ u-boot-spacemit (1.0.5-5) resolute; urgency=medium
     upstream kernel DTS. Boards that already carry a specific
     compatible (e.g. "deepcomputing,fml13v05") are left untouched.
 
- -- Valentin Haudiquet <valentin.haudiquet@canonical.com>  Thu, 17 Sep 2026 16:17:15 +0200
+ -- Valentin Haudiquet <valentin.haudiquet@canonical.com>  Tue, 08 Sep 2026 08:57:06 +0200
+
 u-boot-spacemit (1.0.5-4) resolute; urgency=medium
 
   * add uart compatible strings for k3 opensbi logs
